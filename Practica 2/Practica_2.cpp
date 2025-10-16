@@ -4,12 +4,37 @@
 #include <cmath>
 #include <codebase.h>
 
+GLuint anilloMenor, anilloMayor;
+
+GLuint anillo(float diamExt, float diamInt, float grosor, float res = 20) {
+	GLuint id = glGenLists(1); // Identificador del objeto
+	glNewList(id, GL_COMPILE); // Abre la lista
+	glBegin(GL_POLYGON);// Dibuja el pentagono en la lista
+	glVertex3f(0.5 * cos(0 * 2 * 3.1415926 / 5), 0.5 * sin(0 * 2 * 3.1415926 / 5), 0.0);
+	glVertex3f(0.5 * cos(1 * 2 * 3.1415926 / 5), 0.5 * sin(1 * 2 * 3.1415926 / 5), 0.0);
+	glVertex3f(0.5 * cos(2 * 2 * 3.1415926 / 5), 0.5 * sin(2 * 2 * 3.1415926 / 5), 0.0);
+	glVertex3f(0.5 * cos(3 * 2 * 3.1415926 / 5), 0.5 * sin(3 * 2 * 3.1415926 / 5), 0.0);
+	glVertex3f(0.5 * cos(4 * 2 * 3.1415926 / 5), 0.5 * sin(4 * 2 * 3.1415926 / 5), 0.0);
+	glEnd();
+	glEndList(); // Cierra la lista
+	return id;
+}
+
+void init()
+// Funcion de inicializacion propia
+{
+	anilloMenor = anillo(1.5, 0.8, 0.2, 30);
+	anilloMayor = anillo(2, 1, 0.2, 40);
+}
+
 // Funcion de atencion al evento de dibujo
 void display()
 {
 	glClearColor(0.0f, 0.0f, 0.3f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
-	glClear(GL_COLOR_BUFFER_BIT); // Borra la pantalla
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	gluLookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
 	// Dibujo como POLYGON relleno
 	glColor3f(1.0, 0.0, 0.0);
 	GLuint anilloMenor, anilloMayor;
@@ -17,6 +42,7 @@ void display()
 	anilloMayor = anillo(2, 1, 0.2, 40);
 	glCallList(anilloMenor);
 	glCallList(anilloMayor);
+	/*
 	// Dibujo como POLYGON solo aristas
 	glPolygonMode(GL_FRONT, GL_LINE);
 	glLineWidth(2.0);
@@ -30,22 +56,9 @@ void display()
 	glCallList(anilloMenor);
 	glCallList(anilloMayor);
 	glFlush();
+	*/
 
-	GLuint anillo(float diamExt, float diamInt, float grosor, float res = 20) {
-			GLuint a; // Identificador del objeto
-			anillo = glGenLists(1); // Obtiene el identificador de la lista
-			glNewList(a, GL_COMPILE); // Abre la lista
-			// Dibuja el pentagono en la lista
-			glBegin(GL_POLYGON);
-			glVertex3f(0.5 * cos(0 * 2 * 3.1415926 / 5), 0.5 * sin(0 * 2 * 3.1415926 / 5), 0.0);
-			glVertex3f(0.5 * cos(1 * 2 * 3.1415926 / 5), 0.5 * sin(1 * 2 * 3.1415926 / 5), 0.0);
-			glVertex3f(0.5 * cos(2 * 2 * 3.1415926 / 5), 0.5 * sin(2 * 2 * 3.1415926 / 5), 0.0);
-			glVertex3f(0.5 * cos(3 * 2 * 3.1415926 / 5), 0.5 * sin(3 * 2 * 3.1415926 / 5), 0.0);
-			glVertex3f(0.5 * cos(4 * 2 * 3.1415926 / 5), 0.5 * sin(4 * 2 * 3.1415926 / 5), 0.0);
-			glEnd();
-			glEndList(); // Cierra la lista
-			return a;
-	}
+	
 }
 
 // Funcion de atencion al redimensionamiento
@@ -60,6 +73,7 @@ int main(int argc, char** argv)
 	glutInitWindowSize(400, 400); // Tamanyo inicial de la ventana
 	glutInitWindowPosition(50, 200);
 	glutCreateWindow(PROYECTO); // Creacion de la ventana con su titulo
+	init();
 	std::cout << PROYECTO << " running" << std::endl; // Mensaje por consola 
 	glutDisplayFunc(display); // Alta de la funcion de atencion a display
 	glutReshapeFunc(reshape); // Alta de la funcion de atencion a reshape
