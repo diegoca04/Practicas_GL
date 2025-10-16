@@ -30,6 +30,22 @@ void display()
 	glCallList(anilloMenor);
 	glCallList(anilloMayor);
 	glFlush();
+
+	GLuint anillo(float diamExt, float diamInt, float grosor, float res = 20) {
+			GLuint a; // Identificador del objeto
+			anillo = glGenLists(1); // Obtiene el identificador de la lista
+			glNewList(a, GL_COMPILE); // Abre la lista
+			// Dibuja el pentagono en la lista
+			glBegin(GL_POLYGON);
+			glVertex3f(0.5 * cos(0 * 2 * 3.1415926 / 5), 0.5 * sin(0 * 2 * 3.1415926 / 5), 0.0);
+			glVertex3f(0.5 * cos(1 * 2 * 3.1415926 / 5), 0.5 * sin(1 * 2 * 3.1415926 / 5), 0.0);
+			glVertex3f(0.5 * cos(2 * 2 * 3.1415926 / 5), 0.5 * sin(2 * 2 * 3.1415926 / 5), 0.0);
+			glVertex3f(0.5 * cos(3 * 2 * 3.1415926 / 5), 0.5 * sin(3 * 2 * 3.1415926 / 5), 0.0);
+			glVertex3f(0.5 * cos(4 * 2 * 3.1415926 / 5), 0.5 * sin(4 * 2 * 3.1415926 / 5), 0.0);
+			glEnd();
+			glEndList(); // Cierra la lista
+			return a;
+	}
 }
 
 // Funcion de atencion al redimensionamiento
@@ -48,20 +64,4 @@ int main(int argc, char** argv)
 	glutDisplayFunc(display); // Alta de la funcion de atencion a display
 	glutReshapeFunc(reshape); // Alta de la funcion de atencion a reshape
 	glutMainLoop(); // Puesta en marcha del programa 
-}
-
-GLuint anillo(float diamExt, float diamInt, float grosor, float res = 20) {
-		GLuint anillo; // Identificador del objeto
-		anillo = glGenLists(1); // Obtiene el identificador de la lista
-		glNewList(anillo, GL_COMPILE); // Abre la lista
-		// Dibuja el pentagono en la lista
-		glBegin(GL_POLYGON);
-		glVertex3f(0.5 * cos(0 * 2 * 3.1415926 / 5), 0.5 * sin(0 * 2 * 3.1415926 / 5), 0.0);
-		glVertex3f(0.5 * cos(1 * 2 * 3.1415926 / 5), 0.5 * sin(1 * 2 * 3.1415926 / 5), 0.0);
-		glVertex3f(0.5 * cos(2 * 2 * 3.1415926 / 5), 0.5 * sin(2 * 2 * 3.1415926 / 5), 0.0);
-		glVertex3f(0.5 * cos(3 * 2 * 3.1415926 / 5), 0.5 * sin(3 * 2 * 3.1415926 / 5), 0.0);
-		glVertex3f(0.5 * cos(4 * 2 * 3.1415926 / 5), 0.5 * sin(4 * 2 * 3.1415926 / 5), 0.0);
-		glEnd();
-		glEndList(); // Cierra la lista
-		return anillo;
 }
