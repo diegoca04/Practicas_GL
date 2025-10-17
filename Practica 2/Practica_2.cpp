@@ -6,6 +6,12 @@
 
 GLuint anilloMenor, anilloMayor;
 
+static const GLfloat vertices[18] = { 1,0,0, 0,1,0, 0,0,1, -1,0,0, 0,-1,0, 0,0,-1 };
+
+static const GLfloat colores[18] = { 1,0,0, 0,1,0, 0,0,1, 1,1,0, 0,1,1, 1,0,1 };
+
+static const GLuint indices[24] = { 1,2,0, 1,0,5, 1,5,3, 1,3,2, 4,2,0, 4,0,5, 4,5,3, 4,3,2 };
+
 GLuint anillo(float diamExt, float diamInt, float grosor, float res = 20) 
 {
 	GLuint id = glGenLists(1);
@@ -21,13 +27,15 @@ GLuint anillo(float diamExt, float diamInt, float grosor, float res = 20)
 	return id;
 }
 
-std::vector<cb::Vec3> puntosCircunferencia(int numeroPuntos, float radio, float fase) 
+/*std::vector<cb::Vec3> puntosCircunferencia(int numeroPuntos, float radio, float fase)
 {
 
-}
+}*/
 
 void init()
 {
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(3, GL_FLOAT, 0, vertices);
 	anilloMenor = anillo(1.5, 0.8, 0.2, 30);
 	anilloMayor = anillo(2, 1, 0.2, 40);
 }
@@ -39,14 +47,21 @@ void display()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	gluLookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
-	glColor3f(0.0, 0.0, 0.0);
 	anilloMenor = anillo(1.5, 0.8, 0.2, 30);
 	anilloMayor = anillo(2, 1, 0.2, 40);
-	glCallList(anilloMenor);
-	glCallList(anilloMayor);
+
+	glColor3f(0.0, 0.0, 0.0);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	glColor3f(1, 1, 1);
+	glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, indices);
+	//glCallList(anilloMenor);
+	//glCallList(anilloMayor);
+	
+	glColor3f(1, 0, 0);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glDrawElements(GL_TRIANGLES, 24, GL_UNSIGNED_INT, indices);
+	//glCallList(anilloMenor);
+	//glCallList(anilloMayor);
+
 	glFlush();
 }
 
