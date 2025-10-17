@@ -35,30 +35,29 @@ void display()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	gluLookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
-	// Dibujo como POLYGON relleno
-	glPolygonMode(GL_FRONT, GL_FILL);
-	glColor3f(1.0, 0.0, 0.0);
+	glColor3f(0.0, 0.0, 0.0);
 	anilloMenor = anillo(1.5, 0.8, 0.2, 30);
 	anilloMayor = anillo(2, 1, 0.2, 40);
 	glCallList(anilloMenor);
 	glCallList(anilloMayor);
+	glPolygonMode(GL_FRONT, GL_FILL);
+	glFlush();
 }
 
-// Funcion de atencion al redimensionamiento
 void reshape(GLint w, GLint h)
 {
 }
 
 int main(int argc, char** argv)
 {
-	glutInit(&argc, argv); // Inicializacion de GLUT
-	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB); // Alta de buffers a usar
-	glutInitWindowSize(500, 500); // Tamanyo inicial de la ventana
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+	glutInitWindowSize(500, 500);
 	glutInitWindowPosition(1000, 100);
-	glutCreateWindow(PROYECTO); // Creacion de la ventana con su titulo
+	glutCreateWindow(PROYECTO);
 	init();
-	//std::cout << PROYECTO << " running" << std::endl; // Mensaje por consola 
-	glutDisplayFunc(display); // Alta de la funcion de atencion a display
-	glutReshapeFunc(reshape); // Alta de la funcion de atencion a reshape
-	glutMainLoop(); // Puesta en marcha del programa 
+	std::cout << PROYECTO << " running" << std::endl;
+	glutDisplayFunc(display);
+	glutReshapeFunc(reshape);
+	glutMainLoop();
 }
