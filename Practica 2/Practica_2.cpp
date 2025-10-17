@@ -6,28 +6,32 @@
 
 GLuint anilloMenor, anilloMayor;
 
-GLuint anillo(float diamExt, float diamInt, float grosor, float res = 20) {
-	GLuint id = glGenLists(1); // Identificador del objeto
-	glNewList(id, GL_COMPILE); // Abre la lista
-	glBegin(GL_POLYGON);// Dibuja el pentagono en la lista
+GLuint anillo(float diamExt, float diamInt, float grosor, float res = 20) 
+{
+	GLuint id = glGenLists(1);
+	glNewList(id, GL_COMPILE);
+	glBegin(GL_POLYGON);
 	glVertex3f(0.5 * cos(0 * 2 * 3.1415926 / 5), 0.5 * sin(0 * 2 * 3.1415926 / 5), 0.0);
 	glVertex3f(0.5 * cos(1 * 2 * 3.1415926 / 5), 0.5 * sin(1 * 2 * 3.1415926 / 5), 0.0);
 	glVertex3f(0.5 * cos(2 * 2 * 3.1415926 / 5), 0.5 * sin(2 * 2 * 3.1415926 / 5), 0.0);
 	glVertex3f(0.5 * cos(3 * 2 * 3.1415926 / 5), 0.5 * sin(3 * 2 * 3.1415926 / 5), 0.0);
 	glVertex3f(0.5 * cos(4 * 2 * 3.1415926 / 5), 0.5 * sin(4 * 2 * 3.1415926 / 5), 0.0);
 	glEnd();
-	glEndList(); // Cierra la lista
+	glEndList();
 	return id;
 }
 
+std::vector<cb::Vec3> puntosCircunferencia(int numeroPuntos, float radio, float fase) 
+{
+
+}
+
 void init()
-// Funcion de inicializacion propia
 {
 	anilloMenor = anillo(1.5, 0.8, 0.2, 30);
 	anilloMayor = anillo(2, 1, 0.2, 40);
 }
 
-// Funcion de atencion al evento de dibujo
 void display()
 {
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -40,7 +44,9 @@ void display()
 	anilloMayor = anillo(2, 1, 0.2, 40);
 	glCallList(anilloMenor);
 	glCallList(anilloMayor);
-	glPolygonMode(GL_FRONT, GL_FILL);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glColor3f(1, 1, 1);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glFlush();
 }
 
