@@ -1,4 +1,4 @@
-#define PROYECTO "Practica 2"
+#define PROYECTO "Practica 3"
 
 #include <iostream>	
 #include <cmath>
@@ -8,7 +8,7 @@
 GLuint anilloMenor, anilloMayor;
 
 std::vector<cb::Vec3> puntosCircunferencia(int numeroPuntos, float radio, float fase = 0, float z = 0.0f)
-{	
+{
 	std::vector<cb::Vec3> res = {};
 
 	if (numeroPuntos <= 0) return res;
@@ -54,8 +54,8 @@ GLuint anillo(float diamExt, float diamInt, float grosor, float res = 20)
 		indices.push_back(next + N);
 		indices.push_back(i + N);
 	}
-	for (int i = 2*N; i < 3*N; i++) {
-		int next = (i + 1 - 2*N) % N + 2*N;
+	for (int i = 2 * N; i < 3 * N; i++) {
+		int next = (i + 1 - 2 * N) % N + 2 * N;
 		indices.push_back(i);
 		indices.push_back(next);
 		indices.push_back(next + N);
@@ -65,15 +65,15 @@ GLuint anillo(float diamExt, float diamInt, float grosor, float res = 20)
 		int next = (i + 1) % N;
 		indices.push_back(i);
 		indices.push_back(next);
-		indices.push_back(next + 2*N);
-		indices.push_back(i + 2*N);
+		indices.push_back(next + 2 * N);
+		indices.push_back(i + 2 * N);
 	}
 	for (int i = N; i < 2 * N; i++) {
 		int next = (i + 1 - N) % N + N;
 		indices.push_back(i);
 		indices.push_back(next);
-		indices.push_back(next + 2*N);
-		indices.push_back(i + 2*N);
+		indices.push_back(next + 2 * N);
+		indices.push_back(i + 2 * N);
 	}
 
 	/*glBegin(GL_LINE_LOOP);
@@ -118,7 +118,7 @@ void display()
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glCallList(anilloMenor);
 	glCallList(anilloMayor);
-	
+
 	glColor3f(1, 0, 0);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glCallList(anilloMenor);
