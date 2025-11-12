@@ -5,7 +5,7 @@
 #include <codebase.h>
 #include <vector>
 
-GLuint engranaje1, engranaje2;
+GLuint engranaje1, engranaje2, engranaje3;
 
 std::vector<cb::Vec3> puntosCircunferencia(int numeroPuntos, float radio, float fase = 0, float z = 0.0f)
 {
@@ -216,18 +216,20 @@ GLuint engranajeCara(float diametroPrimitivo, float alturaDiente, float
 	GLuint id = glGenLists(1);
 	glNewList(id, GL_COMPILE);
 
+	float diamExt = diametroPrimitivo - diametroInterior + diametroPrimitivo;
+
 	std::vector<cb::Vec3> verticesInt = puntosCircunferencia(numeroDientes, diametroInterior / 2.0f);
-	std::vector<cb::Vec3> verticesExt = puntosCircunferencia(numeroDientes, diametroPrimitivo / 2.0f);
+	std::vector<cb::Vec3> verticesExt = puntosCircunferencia(numeroDientes, diamExt / 2.0f);
 
 	std::vector<cb::Vec3> verticesInt2 = puntosCircunferencia(numeroDientes, diametroInterior / 2.0f, 0, grosor);
-	std::vector<cb::Vec3> verticesExt2 = puntosCircunferencia(numeroDientes, diametroPrimitivo / 2.0f, 0, grosor);
+	std::vector<cb::Vec3> verticesExt2 = puntosCircunferencia(numeroDientes, diamExt / 2.0f, 0, grosor);
 
 	float n = 360 / (2 * numeroDientes);
 
 	std::vector<cb::Vec3> verticesDientesInt = puntosCircunferencia(numeroDientes, 
 		(diametroInterior) / 2.0f, n, 0 - alturaDiente);
 	std::vector<cb::Vec3> verticesDientesExt = puntosCircunferencia(numeroDientes, 
-		(diametroPrimitivo) / 2.0f, n, 0 - alturaDiente);
+		(diamExt) / 2.0f, n, 0 - alturaDiente);
 
 	int N = verticesInt.size();
 
@@ -240,13 +242,6 @@ GLuint engranajeCara(float diametroPrimitivo, float alturaDiente, float
 	vertices.insert(vertices.end(), verticesDientesExt.begin(), verticesDientesExt.end());
 
 	std::vector<GLuint> indices;
-	for (int i = 0; i < N; i++) {
-		int next = (i + 1) % N;
-		indices.push_back(i);
-		indices.push_back(next);
-		indices.push_back(next + N);
-		indices.push_back(i + N);
-	}
 	for (int i = 2 * N; i < 3 * N; i++) {
 		int next = (i + 1 - 2 * N) % N + 2 * N;
 		indices.push_back(i);
@@ -268,34 +263,33 @@ GLuint engranajeCara(float diametroPrimitivo, float alturaDiente, float
 		indices.push_back(next + 2 * N);
 		indices.push_back(i + 2 * N);
 	}
-	//Cambiar estos dos bucles
 	for (int i = 0; i < N; i++) {
-		indices.push_back(i + N);
+		int next = (i + 1) % N;
+		indices.push_back(next);
 		indices.push_back(i + 4 * N);
 		indices.push_back(i + 5 * N);
-		indices.push_back(i + 3 * N);
+		indices.push_back(next + N);
 	}
 	for (int i = 0; i < N; i++) {
 		int next = (i + 1) % N;
-		indices.push_back(i + 4 * N);
+		indices.push_back(next);
+		indices.push_back(next + 4 * N);
+		indices.push_back(next + 5 * N);
 		indices.push_back(next + N);
-		indices.push_back(next + 3 * N);
-		indices.push_back(i + 5 * N);
 	}
 
 	std::vector<GLuint> indicesDientes;
-	//Cambiar estos dos también
+	for (int i = 0; i < N; i++) {
+		int next = (i + 1) % N;
+		indicesDientes.push_back(i);
+		indicesDientes.push_back(next);
+		indicesDientes.push_back(i + 4 * N);
+	}
 	for (int i = N; i < 2 * N; i++) {
 		int next = (i + 1 - N) % N + N;
 		indicesDientes.push_back(i);
 		indicesDientes.push_back(next);
-		indicesDientes.push_back(i + 3 * N);
-	}
-	for (int i = 3 * N; i < 4 * N; i++) {
-		int next = (i + 1 - 3 * N) % N + 3 * N;
-		indicesDientes.push_back(i);
-		indicesDientes.push_back(next);
-		indicesDientes.push_back(i + 2 * N);
+		indicesDientes.push_back(i + 4 * N);
 	}
 
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -312,8 +306,9 @@ GLuint engranajeCara(float diametroPrimitivo, float alturaDiente, float
 
 void init()
 {
-	engranaje1 = engranajeExterior(1.2, 0.2, 0.8, 0.2, 30);
-	engranaje2 = engranajeInterior(1.6, 0.2, 1.8, 0.2, 30);
+	engranaje1 = engranajeExterior(0.7, 0.2, 0.4, 0.2, 30);
+	engranaje2 = engranajeInterior(1.0, 0.2, 1.2, 0.2, 30);
+	engranaje3 = engranajeCara(1.5, 0.1, 1.4, 0.2, 30);
 }
 
 void display()
@@ -324,21 +319,43 @@ void display()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	gluLookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
-	//gluLookAt(0, 0, 0, -0.7, 0.3, -0.7, 0, 1, 0);
-	//gluLookAt(3, 2, 3, 0, 0, 0, 0, 1, 0);
-
+	//gluLookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
+	gluLookAt(0, 0, 0, -0.7, 0.3, -0.7, 0, 1, 0);
+	
 	cb::ejes();
 
-	glColor3f(0.0, 0.0, 0.0);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	glCallList(engranaje1);
-	glCallList(engranaje2);
+	glPushMatrix();
+		glRotatef(6, 0, 0, 1);
+		glTranslatef(0, 0, 0);
+		glColor3f(0.0, 0.0, 0.0);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glCallList(engranaje1);
 
-	glColor3f(1, 0, 0);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	glCallList(engranaje1);
-	glCallList(engranaje2);
+		glColor3f(1, 0, 0);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glCallList(engranaje1);
+	glPopMatrix();
+
+	glPushMatrix();
+		glTranslatef(0, 0, 0);
+		glColor3f(0.0, 0.0, 0.0);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glCallList(engranaje2);
+
+		glColor3f(0, 1, 0);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glCallList(engranaje2);
+	glPopMatrix();
+
+	glPushMatrix();
+		glColor3f(0.0, 0.0, 0.0);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glCallList(engranaje3);
+
+		glColor3f(0, 0, 1);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glCallList(engranaje3);
+	glPopMatrix();
 
 	glutSwapBuffers();
 }
