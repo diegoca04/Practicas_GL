@@ -7,10 +7,16 @@
 #include <vector>
 
 static float angulo = 0.0;
-static float camara[] = {0.7, 0, -0.9};
+static float camara[] = { 0, 5, 0 };
 static const float velocidad = 0.5;
 
+static const float pov = 7;
+
 GLuint caja, engranaje1, engranaje2, engranaje3, tubo;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//                                          Creadores de figuras                                                      //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::vector<cb::Vec3> puntosCircunferencia(int numeroPuntos, float radio, float fase = 0, float z = 0.0f)
 {
@@ -309,7 +315,7 @@ GLuint engranajeCara(float diametroPrimitivo, float alturaDiente, float
 	return id;
 }
 
-GLuint prisma_rectangular(float altura, float anchura, float profundidad)
+GLuint prisma_rectangular(float anchura, float altura, float profundidad)
 {
 	GLuint id = glGenLists(1);
 	glNewList(id, GL_COMPILE);
@@ -380,6 +386,10 @@ GLuint prisma_rectangular(float altura, float anchura, float profundidad)
 	return id;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//                                          Controlador del programa                                                  //
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void onIdle()
 {
 	static int antes = 0;
@@ -388,9 +398,9 @@ void onIdle()
 	tiempo_transcurrido = ahora - antes;
 
 	angulo += velocidad * tiempo_transcurrido / 1000.0;
-	camara[0] = sin(angulo);
+	camara[0] = pov*sin(angulo);
 	//camara[1] = (sin(angulo) + cos(angulo)) / 2;
-	camara[2] = cos(angulo);
+	camara[2] = pov*cos(angulo);
 
 	antes = ahora;
 
@@ -400,7 +410,7 @@ void onIdle()
 void init()
 {
 	engranaje1 = engranajeExterior(1.5, 0.1, 0.3, 0.1, 60);
-	caja = prisma_rectangular(1, 1, 1);
+	caja = prisma_rectangular(3, 1, 2);
 }
 
 void display()
@@ -412,7 +422,7 @@ void display()
 	glLoadIdentity();
 
 	//gluLookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
-	gluLookAt(1, 0, 3, camara[0], camara[1], camara[2], 0, 1, 0);
+	gluLookAt(camara[0], camara[1], camara[2], 0, 0, 0, 0, 1, 0);
 
 	cb::ejes();
 
