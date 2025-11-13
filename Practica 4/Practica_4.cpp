@@ -8,6 +8,15 @@
 
 GLuint engranaje1, engranaje2, engranaje1_l, engranaje2_l;
 
+static bool camara;
+
+static float eje[] = { 0,0,0 };
+
+static cb::Vec3 pov(1.0f, 0.0f, 3.0f);
+static cb::Vec3 poi(0.5f, 0.1f, -0.9f);
+
+static const float ang = 1.0f * PI / 180.0f;
+
 std::vector<cb::Vec3> puntosCircunferencia(int numeroPuntos, float radio, float fase = 0, float z = 0.0f)
 {
 	std::vector<cb::Vec3> res = {};
@@ -147,14 +156,19 @@ void display()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	//gluLookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
-	gluLookAt(0, 0, 0, 0.7, -0.1, -0.9, 0, 1, 0);
+	gluLookAt(pov.x, pov.y, pov.z, poi.x, poi.y, poi.z, 0, 1, 0);
 
 	cb::ejes();
 	
+	cb::Vec3 v = poi - pov;
+	cb::Vec3 u = pov - poi;
+	v.normalize();
+	u.rotate(ang, v);
+	pov = poi + u;
+
 	glPushMatrix();
-		glTranslatef(0.8, -0.4, 0);
-		glColor3f(0.0, 0.0, 0.0);
+		glTranslatef(1.2, 0, 1.5);
+		glColor3f(0.0, 1.0, 0.0);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		glCallList(engranaje1);
 
@@ -164,7 +178,8 @@ void display()
 	glPopMatrix();
 
 	glPushMatrix();
-		glColor3f(0.0, 0.0, 0.0);
+		glTranslatef(0, 0, -4);
+		glColor3f(0.0, 0.0, 1.0);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		glCallList(engranaje2);
 
@@ -176,51 +191,32 @@ void display()
 	glutSwapBuffers();
 }
 
-void reshape(GLint w, GLint h)
-// Funcion de atencion al redimensionamiento
+void reshape(GLint w, GLint h) //camara -> true: ortográfica, false = perspectiva
 {
-	/* 
-	
-	version 1:
-
-	// Usamos toda el area de dibujo
 	glViewport(0, 0, w, h);
-	// Definimos la camara (matriz de proyeccion)
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	float razon = (float)w / h;
-	gluPerspective(45, razon, 1, 10);
 
-	version 2:
-
-	// Razon de aspecto de la vista
-	static const float razon = 2.0; // a/b = w'/h'
-	// Razon de aspecto del area de dibujo
-	float razonAD = float(w) / h;
-	float wp, hp; // w',h'
-	if (razonAD < razon) {
-		wp = float(w);
-		hp = wp / razon;
-		glViewport(0, int(h / 2.0 - hp / 2.0), w, int(hp));
-	}
-	else {
-		hp = float(h);
-		wp = hp * razon;
-		glViewport(int(w / 2.0 - wp / 2.0), 0, int(wp), h);
-	}
-	// Definimos la camara (matriz de proyeccion)
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	gluPerspective(45, razon, 1, 10);
-
-	*/
+	if (camara) { glOrtho(-1.5, 1, -1.5, 1, -1, 10); }
+	else { gluPerspective(45, w/h, 1, 10); }
 }
 
 int main(int argc, char** argv)
 {
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
-	glutInitWindowSize(700, 700);
+	string cam;
+	std::cout << "Cámara deseada (o/p): ";
+	std::cin >> cam;
+	if (cam == "o") { camara = true; }
+	else if (cam == "p") { camara = false; }
+	while (cam != "o" && cam != "p"){
+			std::cout << "Introduzca un valor válido (o/p): ";
+			std::cin >> cam;
+			if (cam == "o") { camara = true; }
+			else if (cam == "p") { camara = false; }
+	} 
+	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB | GLUT_DEPTH);
+	glutInitWindowSize(600, 600);
 	glutInitWindowPosition(500, 50);
 	glutCreateWindow(PROYECTO);
 	init();

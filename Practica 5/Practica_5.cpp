@@ -6,6 +6,12 @@
 #include <gl\freeglut.h>
 #include <vector>
 
+static float angulo = 0.0;
+static float camara[] = {0.7, 0, -0.9};
+static const float velocidad = 0.5;
+
+GLuint caja, engranaje1, engranaje2, engranaje3, tubo;
+
 std::vector<cb::Vec3> puntosCircunferencia(int numeroPuntos, float radio, float fase = 0, float z = 0.0f)
 {
 	std::vector<cb::Vec3> res = {};
@@ -303,30 +309,149 @@ GLuint engranajeCara(float diametroPrimitivo, float alturaDiente, float
 	return id;
 }
 
+GLuint prisma_rectangular(float altura, float anchura, float profundidad)
+{
+	GLuint id = glGenLists(1);
+	glNewList(id, GL_COMPILE);
+
+	std::vector<cb::Vec3> vertices;
+
+	for (int i = 1; i <= 8; i++) {
+		float x, y, z;
+		if (i <= 4){ x = anchura / 2; }
+		else { x = - anchura / 2; }
+		if (i % 2) { z = profundidad / 2; }
+		else { z = - profundidad / 2; }
+		if (i > 2 && i < 7) { y = altura / 2; }
+		else { y = - altura / 2; }
+		vertices.push_back(cb::Vec3(x, y, z));
+	}
+	/*
+	orden:
+	(1 , -1,  1)   0
+	(1 , -1, -1)   1
+	(1 ,  1,  1)   2
+	(1 ,  1, -1)   3
+	(-1,  1,  1)   4
+	(-1,  1, -1)   5
+	(-1, -1,  1)   6
+	(-1, -1, -1)   7
+	*/
+
+	std::vector<GLuint> indices;
+	indices.push_back(0);
+	indices.push_back(1);
+	indices.push_back(3);		//cara lateral derecha
+	indices.push_back(2);
+
+	indices.push_back(0);
+	indices.push_back(1);
+	indices.push_back(7);		//cara inferior
+	indices.push_back(6);
+
+	indices.push_back(6);
+	indices.push_back(4);
+	indices.push_back(5);		//cara lateral izquierda
+	indices.push_back(7);
+
+	indices.push_back(4);
+	indices.push_back(5);
+	indices.push_back(3);		//cara superior
+	indices.push_back(2);
+
+	indices.push_back(0);
+	indices.push_back(2);
+	indices.push_back(4);		//cara frontal
+	indices.push_back(6);
+
+	indices.push_back(1);
+	indices.push_back(3);
+	indices.push_back(5);		//cara trasera
+	indices.push_back(7);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(3, GL_FLOAT, 0, vertices.data());
+	glDrawElements(GL_QUADS, indices.size(), GL_UNSIGNED_INT, indices.data());
+	glDisableClientState(GL_VERTEX_ARRAY);
+
+	glEnd();
+
+	glEndList();
+	return id;
+}
+
+void onIdle()
+{
+	static int antes = 0;
+	int ahora, tiempo_transcurrido;
+	ahora = glutGet(GLUT_ELAPSED_TIME);
+	tiempo_transcurrido = ahora - antes;
+
+	angulo += velocidad * tiempo_transcurrido / 1000.0;
+	camara[0] = sin(angulo);
+	//camara[1] = (sin(angulo) + cos(angulo)) / 2;
+	camara[2] = cos(angulo);
+
+	antes = ahora;
+
+	glutPostRedisplay();
+}
+
 void init()
 {
-	
+	engranaje1 = engranajeExterior(1.5, 0.1, 0.3, 0.1, 60);
+	caja = prisma_rectangular(1, 1, 1);
 }
 
 void display()
 {
-	
+	glEnable(GL_DEPTH_TEST);
+	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+	//gluLookAt(0, 0, 0, 0, 0, -1, 0, 1, 0);
+	gluLookAt(1, 0, 3, camara[0], camara[1], camara[2], 0, 1, 0);
+
+	cb::ejes();
+
+	glPushMatrix();
+	glTranslatef(0.0, 0.0, 0.0);
+	glColor3f(0.0, 0.0, 0.0);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	//glCallList(engranaje1);
+	glCallList(caja);
+
+	glColor3f(1, 1, 1);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	//glCallList(engranaje1);
+	glCallList(caja);
+	glPopMatrix();
+
+	glutSwapBuffers();
 }
 
 void reshape(GLint w, GLint h)
 {
+	glViewport(0, 0, w, h);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	//glOrtho(-1.5, 1, -1.5, 1, -1, 10);
+	gluPerspective(45, w / h, 1, 10);
 }
 
 int main(int argc, char** argv)
 {
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 	glutInitWindowSize(700, 700);
 	glutInitWindowPosition(500, 50);
 	glutCreateWindow(PROYECTO);
-	init();
 	std::cout << PROYECTO << " running" << std::endl;
 	glutDisplayFunc(display);
 	glutReshapeFunc(reshape);
+	glutIdleFunc(onIdle);
+	init();
 	glutMainLoop();
 }
