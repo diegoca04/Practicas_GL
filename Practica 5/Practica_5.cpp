@@ -7,16 +7,22 @@
 #include <vector>
 
 static float angulo = 0.0;
-static float camara[] = { 6, 6, 12 };
-static const float velocidad = 0.5;
+static float angulo_camara = 0.0;
 
-static const float pov = 10;
+static float camara[] = { 7, 7, 23 };
 
-static const float colorprimario[] = { 0.2, 0.2, 0.2 };
-static const float colorsecundario[] = { 0.58, 0.37, 0.07 };
-static const float colorlineas[] = { 0.5, 0.5, 0.5 };
+static float velocidad = 1;
+static float velocidad_camara = 0.5;
 
-GLuint caja, engranaje1, engranaje2, engranaje3, engranaje4, plataforma_i, plataforma_s, tubo;
+static const float pov = 21;
+
+static const float colorprimario[3] = { 0.2, 0.2, 0.2 };
+static const float colorsecundario[3] = { 0.58, 0.37, 0.07 };
+static const float colorlineas[3] = { 0.5, 0.5, 0.5 };
+
+static bool vista = false;
+
+GLuint caja, engranajes[4], plataforma[2], tubos[2], techo;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                                          Creadores de figuras                                                      //
@@ -133,8 +139,6 @@ GLuint engranajeExterior(float diametroPrimitivo, float alturaDiente, float
 	glColor3f(colorlineas[0], colorlineas[1], colorlineas[2]);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-	//aqui modificar el indices
-
 	glDrawElements(GL_QUADS, indices.size(), GL_UNSIGNED_INT, indices.data());
 	glDrawElements(GL_TRIANGLES, indicesDientes.size(), GL_UNSIGNED_INT, indicesDientes.data());
 
@@ -237,8 +241,6 @@ GLuint engranajeInterior(float diametroPrimitivo, float alturaDiente, float
 
 	glColor3f(colorlineas[0], colorlineas[1], colorlineas[2]);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-	//aqui modificar el indices
 
 	glDrawElements(GL_QUADS, indices.size(), GL_UNSIGNED_INT, indices.data());
 	glDrawElements(GL_TRIANGLES, indicesDientes.size(), GL_UNSIGNED_INT, indicesDientes.data());
@@ -345,8 +347,6 @@ GLuint engranajeCara(float diametroPrimitivo, float alturaDiente, float
 	glColor3f(colorlineas[0], colorlineas[1], colorlineas[2]);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-	//aqui modificar el indices
-
 	glDrawElements(GL_QUADS, indices.size(), GL_UNSIGNED_INT, indices.data());
 	glDrawElements(GL_TRIANGLES, indicesDientes.size(), GL_UNSIGNED_INT, indicesDientes.data());
 
@@ -449,8 +449,6 @@ GLuint prisma_rectangular(float anchura, float altura, float profundidad)
 	glColor3f(colorlineas[0], colorlineas[1], colorlineas[2]);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-	//aqui modificar el indices
-
 	glDrawElements(GL_QUADS, indices.size(), GL_UNSIGNED_INT, indices.data());
 	glDrawElements(GL_TRIANGLES, indices2.size(), GL_UNSIGNED_INT, indices2.data());
 
@@ -462,7 +460,7 @@ GLuint prisma_rectangular(float anchura, float altura, float profundidad)
 	return id;
 }
 
-GLuint cilindro(float diametro, float grosor, unsigned int res, int color = 0)
+GLuint cilindro(float diametro, float grosor, unsigned int res, int color = 0, int rotar = 1)
 {
 	GLuint id = glGenLists(1);
 	glNewList(id, GL_COMPILE);
@@ -482,26 +480,50 @@ GLuint cilindro(float diametro, float grosor, unsigned int res, int color = 0)
 	vertices.insert(vertices.end(), origen2);
 
 	std::vector<GLuint> indices;
+	std::vector<GLuint> indices3;
 	for (int i = 0; i < N; i++) {
 		int next = (i + 1) % N;
-		indices.push_back(i);
-		indices.push_back(next);
-		indices.push_back(N * 2);
+		if (i % 2 == 0) {
+			indices.push_back(i);
+			indices.push_back(next);
+			indices.push_back(N * 2);
+		}
+		else {
+			indices3.push_back(i);
+			indices3.push_back(next);
+			indices3.push_back(N * 2);
+		}
 	}
 	for (int i = N; i < 2 * N; i++) {
 		int next = (i + 1 - N) % N + N;
-		indices.push_back(i);
-		indices.push_back(next);
-		indices.push_back(N * 2 + 1);
+		if (i % 2 == 0) {
+			indices.push_back(i);
+			indices.push_back(next);
+			indices.push_back(N * 2 + 1);
+		}
+		else {
+			indices3.push_back(i);
+			indices3.push_back(next);
+			indices3.push_back(N * 2 + 1);
+		}
 	}
 
 	std::vector<GLuint> indices2;
+	std::vector<GLuint> indices4;
 	for (int i = 0; i < N; i++) {
 		int next = (i + 1) % N;
-		indices2.push_back(i);
-		indices2.push_back(next);
-		indices2.push_back(next + N);
-		indices2.push_back(i + N);
+		if (i % 2 == 0) {
+			indices2.push_back(i);
+			indices2.push_back(next);
+			indices2.push_back(next + N);
+			indices2.push_back(i + N);
+		}
+		else {
+			indices4.push_back(i);
+			indices4.push_back(next);
+			indices4.push_back(next + N);
+			indices4.push_back(i + N);
+		}
 	}
 
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -514,11 +536,96 @@ GLuint cilindro(float diametro, float grosor, unsigned int res, int color = 0)
 	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, indices.data());
 	glDrawElements(GL_QUADS, indices2.size(), GL_UNSIGNED_INT, indices2.data());
 
+	if (color == 1) { glColor3f(0.42, 0.267, 0.051); }
+	glDrawElements(GL_TRIANGLES, indices3.size(), GL_UNSIGNED_INT, indices3.data());
+	glDrawElements(GL_QUADS, indices4.size(), GL_UNSIGNED_INT, indices4.data());
+
+	glColor3f(colorlineas[0], colorlineas[1], colorlineas[2]);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+	if (color > 0 and rotar > 0) {
+		glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, indices.data());
+		glDrawElements(GL_TRIANGLES, indices3.size(), GL_UNSIGNED_INT, indices3.data());
+	}
+	if (rotar == 1) { 
+		glDrawElements(GL_QUADS, indices2.size(), GL_UNSIGNED_INT, indices2.data()); 
+		glDrawElements(GL_QUADS, indices4.size(), GL_UNSIGNED_INT, indices4.data());
+	}
+
+	glDisableClientState(GL_VERTEX_ARRAY);
+
+	glEnd();
+
+	glEndList();
+	return id;
+}
+
+GLuint cono(float diametro, float altura, unsigned int res)
+{
+	GLuint id = glGenLists(1);
+	glNewList(id, GL_COMPILE);
+
+	std::vector<cb::Vec3> verticesInt = puntosCircunferencia(res, diametro / 2.0f);
+
+	int N = verticesInt.size();
+
+	std::vector<cb::Vec3> vertices;
+
+	cb::Vec3 origen_i = cb::Vec3(0, 0, 0);
+	cb::Vec3 origen_s = cb::Vec3(0, 0, altura);
+
+	vertices.insert(vertices.end(), verticesInt.begin(), verticesInt.end());
+	vertices.insert(vertices.end(), origen_i);
+	vertices.insert(vertices.end(), origen_s);
+
+	std::vector<GLuint> indices;
+	std::vector<GLuint> indices2;
+	std::vector<GLuint> indices3;
+	std::vector<GLuint> indices4;
+	for (int i = 0; i < N; i++) {
+		int next = (i + 1) % N;
+		if (i % 2 == 0) {
+			indices.push_back(i);
+			indices.push_back(next);
+			indices.push_back(N + 1);
+			indices3.push_back(i);
+			indices3.push_back(next);
+			indices3.push_back(N);
+		}
+		else {
+			indices2.push_back(i);
+			indices2.push_back(next);
+			indices2.push_back(N + 1);
+			indices4.push_back(i);
+			indices4.push_back(next);
+			indices4.push_back(N);
+		}
+	}
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glVertexPointer(3, GL_FLOAT, 0, vertices.data());
+
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+	glColor3f(1, 0, 0);
+	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, indices.data());
+
+	glColor3f(1, 1, 0);
+	glDrawElements(GL_TRIANGLES, indices2.size(), GL_UNSIGNED_INT, indices2.data());
+
+	glColor3f(colorsecundario[0], colorsecundario[1], colorsecundario[2]);
+	glDrawElements(GL_TRIANGLES, indices3.size(), GL_UNSIGNED_INT, indices3.data());
+
+	glColor3f(0.42, 0.267, 0.051);
+	glDrawElements(GL_TRIANGLES, indices4.size(), GL_UNSIGNED_INT, indices4.data());
+
 	glColor3f(colorlineas[0], colorlineas[1], colorlineas[2]);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, indices.data());
-	glDrawElements(GL_QUADS, indices2.size(), GL_UNSIGNED_INT, indices2.data());
+	glDrawElements(GL_TRIANGLES, indices2.size(), GL_UNSIGNED_INT, indices2.data());
+	glDrawElements(GL_TRIANGLES, indices3.size(), GL_UNSIGNED_INT, indices3.data());
+	glDrawElements(GL_TRIANGLES, indices4.size(), GL_UNSIGNED_INT, indices4	.data());
 
 	glDisableClientState(GL_VERTEX_ARRAY);
 
@@ -538,12 +645,27 @@ void onIdle()
 	int ahora, tiempo_transcurrido;
 	ahora = glutGet(GLUT_ELAPSED_TIME);
 	tiempo_transcurrido = ahora - antes;
+	if (ahora > 3000) {
+		angulo += velocidad * tiempo_transcurrido / 1000.0;
+		angulo_camara += velocidad_camara * tiempo_transcurrido / 1000.0;
+		camara[0] = 7 + pov * sin(angulo_camara / 2);
+		if (ahora > 8000) { camara[1] = 2.8 + 7 * sin(angulo_camara); }
+		camara[2] = 2 + pov * cos(angulo_camara / 2);
+		if (ahora > 37000) { 
+			//if (ahora < 37005) { printf("t: %d, cam: x = %f, y = %f, z = %f\n", ahora, camara[0], camara[1], camara[2]); }
+			camara[0] = 0;
+			camara[1] = 0;
+			camara[2] = 0;
+			// en 37001 es (23.786, -3.924, -10.618)
+		}
+	}
+	if (ahora > 16000) { velocidad = 2;  }
+	if (ahora > 29000) { velocidad = 3; }
+	if (ahora > 32000) { velocidad = 2; }
+	if (ahora > 35000) { velocidad = 1; }
 
-	angulo += velocidad * tiempo_transcurrido / 1000.0;
-	//camara[0] = pov*sin(angulo);
-	//camara[1] = (sin(angulo) + cos(angulo)) / 2;
-	//camara[2] = pov*cos(angulo);
-
+	//if (ahora == 10000) { glOrtho(-1.5, 1, -1.5, 1, -1, 10); }
+	
 	antes = ahora;
 
 	glutPostRedisplay();
@@ -552,13 +674,15 @@ void onIdle()
 void init()
 {
 	caja = prisma_rectangular(3, 1, 2);
-	engranaje1 = engranajeExterior(1.5, 0.2, 0.5, 0.2, 30);
-	engranaje2 = engranajeCara(4.5, 0.2, 4.4, 0.3, 90);
-	engranaje3 = engranajeExterior(0.75, 0.2, 0.2, 0.2, 15);
-	engranaje4 = engranajeCara(9, 0.2, 8.8, 0.4, 180);
-	plataforma_i = cilindro(8.8, 0.4, 180);
-	plataforma_s = cilindro(9.2, 0.4, 30, 1);
-	tubo = cilindro(1.5, 5, 30, 1);
+	engranajes[0] = engranajeExterior(1.5, 0.2, 0.5, 0.2, 30);
+	engranajes[1] = engranajeCara(4.5, 0.2, 4.4, 0.3, 90);
+	engranajes[2] = engranajeExterior(0.75, 0.2, 0.2, 0.2, 15);
+	engranajes[3] = engranajeCara(9, 0.2, 8.8, 0.4, 180);
+	plataforma[0] = cilindro(8.8, 0.4, 180);
+	plataforma[1] = cilindro(9.2, 0.4, 30, 1);
+	tubos[0] = cilindro(1.2, 5, 30, 1);
+	tubos[1] = cilindro(0.2, 5, 15, 0, 0);
+	techo = cono(9.2, 2, 30);
 }
 
 void display()
@@ -569,9 +693,7 @@ void display()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	gluLookAt(camara[0], camara[1], camara[2], 7, 2, 0, 0, 1, 0);
-
-	//cb::ejes();
+	gluLookAt(camara[0], camara[1], camara[2], 7, 3, 0, 0, 1, 0);
 
 	glPushMatrix();
 		glTranslatef(0.0, 0.0, 0.0);
@@ -581,50 +703,106 @@ void display()
 	glPushMatrix();
 		glTranslatef(1.2, 0.0, 0.0);
 		glRotatef(90, 1, 0, 0);
-		glRotatef(-60 * angulo, 0, 0, 1);
-		glCallList(engranaje1);
+		glRotatef(-120 * velocidad * angulo, 0, 0, 1);
+		glCallList(engranajes[0]);
 	glPopMatrix();
 
 	glPushMatrix();
 		glTranslatef(4.2, -0.2, 0.0);
 		glRotatef(90, 1, 0, 0);
-		glRotatef(6 + 20 * angulo, 0, 0, 1);
-		glCallList(engranaje2);
+		glRotatef(6 + 40 * velocidad * angulo, 0, 0, 1);
+		glCallList(engranajes[1]);
 	glPopMatrix();
 
 	glPushMatrix();
 		glTranslatef(6.82, 0.0, 0.0);
 		glRotatef(90, 1, 0, 0);
-		glRotatef(12 - 120 * angulo, 0, 0, 1);
-		glCallList(engranaje3);
+		glRotatef(12 - 240 * velocidad * angulo, 0, 0, 1);
+		glCallList(engranajes[2]);
 	glPopMatrix();
 
 	glPushMatrix();
 		glTranslatef(11.74, 0.0, 0.0);
 		glRotatef(270, 1, 0, 0);
-		glRotatef(- 10 * angulo, 0, 0, 1);
-		glCallList(engranaje4);
+		glRotatef(- 20 * velocidad * angulo, 0, 0, 1);
+		glCallList(engranajes[3]);
 	glPopMatrix();
 
 	glPushMatrix();
 		glTranslatef(11.74, 0.4, 0.0);
 		glRotatef(90, 1, 0, 0);
-		glRotatef(10 * angulo, 0, 0, 1);
-		glCallList(plataforma_i);
+		glRotatef(20 * velocidad * angulo, 0, 0, 1);
+		glCallList(plataforma[0]);
 	glPopMatrix();
 
 	glPushMatrix();
 		glTranslatef(11.74, 0.8, 0.0);
 		glRotatef(90, 1, 0, 0);
-		glRotatef(10 * angulo, 0, 0, 1);
-		glCallList(plataforma_s);
+		glRotatef(20 * velocidad * angulo, 0, 0, 1);
+		glCallList(plataforma[1]);
 	glPopMatrix();
 
 	glPushMatrix();
 		glTranslatef(11.74, 5.81, 0.0);
 		glRotatef(90, 1, 0, 0);
-		glRotatef(10 * angulo, 0, 0, 1);
-		glCallList(tubo);
+		glRotatef(20 * velocidad * angulo, 0, 0, 1);
+		glCallList(tubos[0]);
+	glPopMatrix();
+
+	glPushMatrix();
+		glTranslatef(11.74, 5.81, 0.0);
+		glRotatef(270, 1, 0, 0);
+		glRotatef(- 20 * velocidad * angulo, 0, 0, 1);
+		glCallList(techo);
+	glPopMatrix();
+
+	float angulo_lento = angulo * velocidad * 0.349f;
+	glPushMatrix();
+		glTranslatef(11.74 + 3.5 * cos(angulo_lento), 5.81, 3.5 * sin(angulo_lento));
+		glRotatef(90, 1, 0, 0);
+		glCallList(tubos[1]);
+	glPopMatrix();
+
+	glPushMatrix();
+		glTranslatef(11.74 + 3.5 * cos(angulo_lento + PI / 4), 5.81, 3.5 * sin(angulo_lento + PI / 4));
+		glRotatef(90, 1, 0, 0);
+		glCallList(tubos[1]);
+	glPopMatrix();
+
+	glPushMatrix();
+		glTranslatef(11.74 + 3.5 * cos(angulo_lento + PI / 2), 5.81, 3.5 * sin(angulo_lento + PI / 2));
+		glRotatef(90, 1, 0, 0);
+		glCallList(tubos[1]);
+	glPopMatrix();
+
+	glPushMatrix();
+		glTranslatef(11.74 + 3.5 * cos(angulo_lento + 3 * PI / 4), 5.81, 3.5 * sin(angulo_lento + 3 * PI / 4));
+		glRotatef(90, 1, 0, 0);
+		glCallList(tubos[1]);
+	glPopMatrix();
+
+	glPushMatrix();
+		glTranslatef(11.74 + 3.5 * cos(angulo_lento + PI), 5.81, 3.5 * sin(angulo_lento + PI));
+		glRotatef(90, 1, 0, 0);
+		glCallList(tubos[1]);
+	glPopMatrix();
+
+	glPushMatrix();
+		glTranslatef(11.74 + 3.5 * cos(angulo_lento + 5 * PI / 4), 5.81, 3.5 * sin(angulo_lento + 5 * PI / 4));
+		glRotatef(90, 1, 0, 0);
+		glCallList(tubos[1]);
+	glPopMatrix();
+
+	glPushMatrix();
+		glTranslatef(11.74 + 3.5 * cos(angulo_lento + 3 * PI / 2), 5.81, 3.5 * sin(angulo_lento + 3 * PI / 2));
+		glRotatef(90, 1, 0, 0);
+		glCallList(tubos[1]);
+	glPopMatrix();
+
+	glPushMatrix();
+		glTranslatef(11.74 + 3.5 * cos(angulo_lento + 7 * PI / 4), 5.81, 3.5 * sin(angulo_lento + 7 * PI / 4));
+		glRotatef(90, 1, 0, 0);
+		glCallList(tubos[1]);
 	glPopMatrix();
 
 	glutSwapBuffers();
@@ -635,7 +813,6 @@ void reshape(GLint w, GLint h)
 	glViewport(0, 0, w, h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	//glOrtho(-1.5, 1, -1.5, 1, -1, 10);
 	gluPerspective(45, w / h, 1, 50);
 }
 
