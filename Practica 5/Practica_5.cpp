@@ -1903,7 +1903,7 @@ void display()
 			glPushMatrix();
 				glTranslatef(11.74+3.5*cos(angulo_lento+i*PI/4), 2+1.2*sin(3*angulo_lento), 3.5*sin(angulo_lento+i*PI/4));
 				glRotatef(90, 1, 0, 0);
-				glRotatef(-20 * angulo, 0, 0, 1);
+				glRotatef(20 * angulo, 0, 0, 1);
 				glCallList(bol);
 			glPopMatrix();
 		}
