@@ -9,9 +9,12 @@
 static float angulo = 0.0;
 static float angulo_camara = 0.0;
 
-static float camara[] = { 7, 6, 23 };
+static float camara[3] = { 7, 5, 21 };
+static float mira[3] = { 7, 3, 0 };
+static float pp[3] = {8.257, 4.005, 0.345};
+static float mirapp[3] = {8.311, 4.005, -0.7};
 
-static float velocidad = 1;
+static int velocidad = 1;
 static float velocidad_camara = 0.5;
 
 static const float pov = 21;
@@ -20,7 +23,7 @@ static const float colorprimario[3] = { 0.2, 0.2, 0.2 };
 static const float colorsecundario[3] = { 0.58, 0.37, 0.07 };
 static const float colorlineas[3] = { 0.5, 0.5, 0.5 };
 
-static bool vista = false;
+static int modo = 0;
 
 GLuint caja, engranajes[4], plataforma[2], tubos[2], techo, cab, bol;
 
@@ -662,7 +665,7 @@ GLuint bola(float diametro, int res) {
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-	glColor3f(0, 0, 0.8);
+	glColor3f(0, 0, 0.4);
 	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, indices.data());
 
 	glColor3f(colorlineas[0], colorlineas[1], colorlineas[2]);
@@ -1771,26 +1774,20 @@ void onIdle()
 	tiempo_transcurrido = ahora - antes;
 	if (ahora > 3000) {
 		angulo += velocidad * tiempo_transcurrido / 1000.0;
-		angulo_camara += velocidad_camara * tiempo_transcurrido / 1000.0;
-		//camara[0] = 7 + pov * sin(angulo_camara / 2);
-		//if (ahora > 8000) { camara[1] = 1.8 + 7 * sin(angulo_camara); }
-		//camara[2] = 2 + pov * cos(angulo_camara / 2);
-		//if (ahora > 37000) { 
-			//if (ahora < 37005) { printf("t: %d, cam: x = %f, y = %f, z = %f\n", ahora, camara[0], camara[1], camara[2]); }
-			//camara[0] = 0;
-			//camara[1] = 0;
-			//camara[2] = 0;
-			// en 37001 es (23.786, -3.924, -10.618)
-		//}
+		if (ahora > 5000) {
+			angulo_camara += velocidad_camara * tiempo_transcurrido / 1000.0;
+			camara[0] = 7 + pov * sin(angulo_camara / 2);
+			if (ahora > 10000) { camara[1] = 0.8 + 7 * sin(angulo_camara); }
+			camara[2] = pov * cos(angulo_camara / 2);
+		}
+		float delta = 0.2f;
+		pp[0] = 11.74 - 3.5 * cos(angulo * 0.349f - delta / 2);
+		pp[1] = 4 + 1.2 * sin(3 * angulo * 0.349f);
+		pp[2] = - 3.5 * sin(angulo * 0.349f - delta / 2);
+		mirapp[0] = 11.74 - 3.5 * cos(angulo * 0.349f + delta);
+		mirapp[1] = pp[1];
+		mirapp[2] =  - 3.5 * sin(angulo * 0.349f + delta);
 	}
-	if (ahora > 12000) { velocidad = 2; }
-	if (ahora > 14000) { velocidad = 3; }
-	if (ahora > 16000) { velocidad = 4;  }
-	if (ahora > 29000) { velocidad = 3; }
-	if (ahora > 32000) { velocidad = 2; }
-	if (ahora > 35000) { velocidad = 1; }
-
-	//if (ahora == 10000) { glOrtho(-1.5, 1, -1.5, 1, -1, 10); }
 
 	antes = ahora;
 
@@ -1810,7 +1807,7 @@ void init()
 	tubos[1] = cilindro(0.2, 5, 15, 0, 0);
 	techo = cono(9.2, 2, 30);
 	cab = caballo();
-	bol = bola(2, 30);
+	bol = bola(1.5, 30);
 }
 
 void display()
@@ -1821,7 +1818,40 @@ void display()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	gluLookAt(camara[0], camara[1], camara[2], 7, 3, 0, 0, 1, 0);
+	switch (modo) {
+		case 0: { 
+			gluLookAt(camara[0], camara[1], camara[2], mira[0], mira[1], mira[2], 0, 1, 0); 
+			break;
+		}
+		case 1: {
+			gluLookAt(6, 3, 15, mira[0], mira[1], mira[2], 0, 1, 0);
+			break;
+		}
+		case 2: {
+			gluLookAt(30, 3, 0, mira[0], mira[1], mira[2], 0, 1, 0);
+			break;
+		}
+		case 3: {
+			gluLookAt(6, 3, -15, mira[0], mira[1], mira[2], 0, 1, 0);
+			break;
+		}
+		case 4: {
+			gluLookAt(-15, 3, 0, mira[0], mira[1], mira[2], 0, 1, 0);
+			break;
+		}
+		case 5: {
+			gluLookAt(6, 20, 0, mira[0], mira[1], mira[2], 0, 0, 1);
+			break;
+		}
+		case 6: {
+			gluLookAt(6, -20, 0, mira[0], mira[1], mira[2], 0, 0, 1);
+			break;
+		}
+		case 7: {
+			gluLookAt(pp[0], pp[1], pp[2], mirapp[0], mirapp[1], mirapp[2], 0, 1, 0);
+			break;
+		}
+	}
 
 	glPushMatrix();
 		glTranslatef(0.0, 0.0, 0.0);
@@ -1901,14 +1931,55 @@ void display()
 		}
 		else {
 			glPushMatrix();
-				glTranslatef(11.74+3.5*cos(angulo_lento+i*PI/4), 2+1.2*sin(3*angulo_lento), 3.5*sin(angulo_lento+i*PI/4));
+				glTranslatef(11.74+3.5*cos(angulo_lento+i*PI/4), 3.1+1.2*sin(3*angulo_lento), 3.5*sin(angulo_lento+i*PI/4));
 				glRotatef(90, 1, 0, 0);
 				glRotatef(20 * angulo, 0, 0, 1);
 				glCallList(bol);
 			glPopMatrix();
 		}
 	}
-	
+
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	glOrtho(0, 800, 0, 600, -1, 1);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+	glRasterPos2i(50, 520);
+	char texto[] = "TECLAS 1-8 PARA MULTICAMARA";
+	for (int i = 0; i < sizeof(texto); i++) {
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, texto[i]);
+	}
+	glRasterPos2i(50, 500);
+	char texto1[] = "CAMARA 1 CINEMATOGRAFICA";
+	for (int i = 0; i < sizeof(texto1); i++) {
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, texto1[i]);
+	}
+	glRasterPos2i(50, 480);
+	char texto2[] = "CAMARA 8 PRIMERA PERSONA";
+	for (int i = 0; i < sizeof(texto2); i++) {
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, texto2[i]);
+	}
+	glRasterPos2i(50, 460);
+	char texto3[] = "CAMARAS 3-7 FIJAS";
+	for (int i = 0; i < sizeof(texto3); i++) {
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, texto3[i]);
+	}
+	glRasterPos2i(50, 420);
+	char texto4[] = "S PARA AUMENTAR LA VELOCIDAD";
+	for (int i = 0; i < sizeof(texto4); i++) {
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, texto4[i]);
+	}
+	glRasterPos2i(50, 400);
+	char texto5[] = "D PARA REDUCIR LA VELOCIDAD";
+	for (int i = 0; i < sizeof(texto5); i++) {
+		glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, texto5[i]);
+	}
+	glPopMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
 	glutSwapBuffers();
 }
 
@@ -1918,6 +1989,24 @@ void reshape(GLint w, GLint h)
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	gluPerspective(45, w / h, 1, 50);
+}
+
+void keyboard(unsigned char key, int x, int y)
+{
+	switch (key)
+	{
+	case '1': modo = 0; break;
+	case '2': modo = 1; break;
+	case '3': modo = 2; break;
+	case '4': modo = 3; break;
+	case '5': modo = 4; break;
+	case '6': modo = 5; break;
+	case '7': modo = 6; break;
+	case '8': modo = 7; break;
+	case 's': velocidad++; break;
+	case 'd': velocidad--; break;
+	}
+	glutPostRedisplay();
 }
 
 int main(int argc, char** argv)
@@ -1931,6 +2020,7 @@ int main(int argc, char** argv)
 	glutDisplayFunc(display);
 	glutReshapeFunc(reshape);
 	glutIdleFunc(onIdle);
+	glutKeyboardFunc(keyboard);
 	init();
 	glutMainLoop();
 }
