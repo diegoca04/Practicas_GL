@@ -1991,9 +1991,9 @@ void reshape(GLint w, GLint h)
 	gluPerspective(45, w / h, 1, 50);
 }
 
-void keyboard(unsigned char key, int x, int y)
+void teclado(unsigned char tecla, int x, int y)
 {
-	switch (key)
+	switch (tecla)
 	{
 	case '1': modo = 0; break;
 	case '2': modo = 1; break;
@@ -2005,6 +2005,7 @@ void keyboard(unsigned char key, int x, int y)
 	case '8': modo = 7; break;
 	case 's': velocidad++; break;
 	case 'd': velocidad--; break;
+	case 27: exit(0); break;
 	}
 	glutPostRedisplay();
 }
@@ -2020,7 +2021,7 @@ int main(int argc, char** argv)
 	glutDisplayFunc(display);
 	glutReshapeFunc(reshape);
 	glutIdleFunc(onIdle);
-	glutKeyboardFunc(keyboard);
+	glutKeyboardFunc(teclado);
 	init();
 	glutMainLoop();
 }
