@@ -14,7 +14,7 @@ static float mira[3] = { 7, 3, 0 };
 static float pp[3] = {8.257, 4.005, 0.345};
 static float mirapp[3] = {8.311, 4.005, -0.7};
 
-static int velocidad = 1;
+static float velocidad = 0;
 static float velocidad_camara = 0.5;
 
 static const float pov = 21;
@@ -24,6 +24,10 @@ static const float colorsecundario[3] = { 0.58, 0.37, 0.07 };
 static const float colorlineas[3] = { 0.5, 0.5, 0.5 };
 
 static int modo = 0;
+
+static bool subir = true;
+
+static int momento = 0;
 
 GLuint caja, engranajes[4], plataforma[2], tubos[2], techo, cab, bol;
 
@@ -1780,6 +1784,7 @@ void onIdle()
 			if (ahora > 10000) { camara[1] = 0.8 + 7 * sin(angulo_camara); }
 			camara[2] = pov * cos(angulo_camara / 2);
 		}
+
 		float delta = 0.2f;
 		pp[0] = 11.74 - 3.5 * cos(angulo * 0.349f - delta / 2);
 		pp[1] = 4 + 1.2 * sin(3 * angulo * 0.349f);
@@ -1787,7 +1792,24 @@ void onIdle()
 		mirapp[0] = 11.74 - 3.5 * cos(angulo * 0.349f + delta);
 		mirapp[1] = pp[1];
 		mirapp[2] =  - 3.5 * sin(angulo * 0.349f + delta);
+
+		if (velocidad >= 10) subir = false;
+		else if (velocidad <= -10) subir = true;
+		if (subir) velocidad += 0.003;
+		else velocidad -= 0.003;
 	}
+
+	momento += 1;
+
+	if (momento > 10000) modo = 1;
+	if (momento > 13000) modo = 2;
+	if (momento > 16000) modo = 3;
+	if (momento > 19000) modo = 4;
+	if (momento > 22000) modo = 5;
+	if (momento > 25000) modo = 6;
+	if (momento > 28000) modo = 7;
+	if (momento > 33000) modo = 0;
+	if (momento > 34000) momento = 3000;
 
 	antes = ahora;
 
@@ -1931,7 +1953,7 @@ void display()
 		}
 		else {
 			glPushMatrix();
-				glTranslatef(11.74+3.5*cos(angulo_lento+i*PI/4), 3.1+1.2*sin(3*angulo_lento), 3.5*sin(angulo_lento+i*PI/4));
+				glTranslatef(11.74+3.5*cos(angulo_lento+i*PI/4), 3.1+1.2*cos(3*angulo_lento), 3.5*sin(angulo_lento+i*PI/4));
 				glRotatef(90, 1, 0, 0);
 				glRotatef(20 * angulo, 0, 0, 1);
 				glCallList(bol);
@@ -1939,6 +1961,7 @@ void display()
 		}
 	}
 
+	/*
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
@@ -1980,6 +2003,8 @@ void display()
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
+	*/
+
 	glutSwapBuffers();
 }
 
@@ -1991,6 +2016,7 @@ void reshape(GLint w, GLint h)
 	gluPerspective(45, w / h, 1, 50);
 }
 
+/*
 void teclado(unsigned char tecla, int x, int y)
 {
 	switch (tecla)
@@ -2009,6 +2035,7 @@ void teclado(unsigned char tecla, int x, int y)
 	}
 	glutPostRedisplay();
 }
+*/
 
 int main(int argc, char** argv)
 {
@@ -2021,7 +2048,7 @@ int main(int argc, char** argv)
 	glutDisplayFunc(display);
 	glutReshapeFunc(reshape);
 	glutIdleFunc(onIdle);
-	glutKeyboardFunc(teclado);
+	//glutKeyboardFunc(teclado);
 	init();
 	glutMainLoop();
 }
