@@ -1795,8 +1795,8 @@ void onIdle()
 
 		if (velocidad >= 10) subir = false;
 		else if (velocidad <= -10) subir = true;
-		if (subir) velocidad += 0.003;
-		else velocidad -= 0.003;
+		if (subir) velocidad += 0.002;
+		else velocidad -= 0.002;
 	}
 
 	momento += 1;
