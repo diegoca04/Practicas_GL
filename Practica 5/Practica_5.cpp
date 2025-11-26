@@ -687,6 +687,12 @@ GLuint bola(float diametro, int res) {
 
 GLuint caballo() 
 {
+
+	/*
+	Referencia al origen del caballo:
+	https://3dexport.com/es/3d-model-stylized-lowpoly-horse-549916
+	*/
+
 	GLuint id = glGenLists(1);
 	glNewList(id, GL_COMPILE);
 
