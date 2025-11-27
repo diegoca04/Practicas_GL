@@ -1,4 +1,4 @@
-#define PROYECTO "Practica 5"
+#define PROYECTO "Practica 6"
 
 #include <iostream>	
 #include <cmath>
