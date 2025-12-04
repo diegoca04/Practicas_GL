@@ -8,24 +8,26 @@
 
 GLuint suelo;
 
-const int DIM_ESPACIO = 10;
+const int DIM_ESPACIO = 200;
 
-static float cam[9] = { 1, 0, 0, 0, 0, 0, 1, - 1, 0 };
+static float cam[9] = { 0, 0, 1, 0, 1, 1, 0, 0, 1 };
 
-GLuint plano(int res, int pos, float orientacion = NULL) {
+static int velocidad = 1;
+
+static float giro = 0;
+
+GLuint plano(int res, int pos) {
 	GLuint id = glGenLists(1);
 	glNewList(id, GL_COMPILE);
 
 	std::vector<cb::Vec3> vertices = {};
 
-	float div = DIM_ESPACIO / 2 * res;
+	float div = DIM_ESPACIO / res;
 	for (int i = 0; i <= res; i++) {
 		for (int j = 0; j <= res; j++) {
 			cb::Vec3 v;
-			if (i < res / 2) v.x = i * div;
-			else v.x = - i * div;
-			if (j < res / 2) v.y = j * div;
-			else v.y = - j * div;
+			v.x = - DIM_ESPACIO / 2 + i * div;
+			v.y = - DIM_ESPACIO / 2 + j * div;
 			v.z = pos;
 			vertices.insert(vertices.end(), v);
 		}
@@ -33,28 +35,24 @@ GLuint plano(int res, int pos, float orientacion = NULL) {
 	
 	std::vector<GLuint> indices;
 	for (int i = 0; i < res; i++) {
-		int n = res + 1;
-		indices.push_back(i);
-		indices.push_back(i + n);
-		indices.push_back(i + 2 * n);
-		indices.push_back(i + 3 * n);
+		for (int j = 0; j < res; j++) {
+			int n = res + 1;
+			indices.push_back(i + j * n);
+			indices.push_back(i + 1 + j * n);
+			indices.push_back(i + 1 + (j + 1) * n);
+			indices.push_back(i + (j + 1) * n);
+		}
 	}
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(3, GL_FLOAT, 0, vertices.data());
 
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	glColor3f(0, 0, 0);
 	glDrawElements(GL_QUADS, indices.size(), GL_UNSIGNED_INT, indices.data());
 
 	glDisableClientState(GL_VERTEX_ARRAY);
-
-	if (orientacion != NULL) {
-		//completar
-	}
-
-	glEnd();
 
 	glEndList();
 	return id;
@@ -62,14 +60,20 @@ GLuint plano(int res, int pos, float orientacion = NULL) {
 
 void onIdle()
 {
-	
+	cam[1] += (float) velocidad / 1000;
+	if (cam[1] > 50 || cam[1] < -50) cam[1] = 0;
+	cam[4] = cam[1] + 1;
 
+	cam[0] -= giro * velocidad / 1000;
+	if (cam[0] > 50 || cam[0] < - 50) cam[0] = 0;
+	cam[3] = cam[0] - giro;
+	
 	glutPostRedisplay();
 }
 
 void init()
 {
-	suelo = plano(10, 0);
+	suelo = plano(200, 0);
 }
 
 void display()
@@ -83,6 +87,7 @@ void display()
 	gluLookAt(cam[0],cam[1],cam[2],cam[3],cam[4],cam[5],cam[6],cam[7],cam[8]);
 
 	glPushMatrix();
+		//glRotatef(giro, 0, 0, 1);
 		glCallList(suelo);
 	glPopMatrix();
 
@@ -99,7 +104,30 @@ void reshape(GLint w, GLint h)
 
 void teclado(unsigned char tecla, int x, int y)
 {
-	
+	switch (tecla) 
+	{
+		case 'a': if (velocidad < 10) velocidad += 1; break;
+		case 'z': if (velocidad > 0) velocidad -= 1; break;
+	}
+	glutPostRedisplay();
+}
+
+void onMouse(int button, int state, int x, int y)
+{
+
+	glutPostRedisplay();
+}
+
+void onMotion(int x, int y)
+{
+
+	glutPostRedisplay();
+}
+
+void onPassiveMotion(int x, int y)
+{
+	giro = (float) (350 - x) / 350;
+	cam[5] = (float) - y / 350 + 2;
 
 	glutPostRedisplay();
 }
@@ -116,6 +144,9 @@ int main(int argc, char** argv)
 	glutReshapeFunc(reshape);
 	glutIdleFunc(onIdle);
 	glutKeyboardFunc(teclado);
+	glutMouseFunc(onMouse);
+	glutMotionFunc(onMotion);
+	glutPassiveMotionFunc(onPassiveMotion);
 	init();
 	glutMainLoop();
 }
