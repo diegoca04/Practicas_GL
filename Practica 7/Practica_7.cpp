@@ -8,7 +8,7 @@
 
 GLuint suelo;
 
-const int DIM_ESPACIO = 300;
+const int DIM_ESPACIO = 400;
 
 const int Wx = 1200, Wy = 700;
 
@@ -16,7 +16,9 @@ static float cam[9] = { 0, 0, 2, 0, 1, 2, 0, 0, 1 };
 
 static int velocidad = 1;
 
-static float giro = 0, altura = 0;
+static float giro = 0, altura = 0, angulo = 0;
+
+static bool luces = false;
 
 GLuint plano(int res, int pos) {
 	GLuint id = glGenLists(1);
@@ -49,11 +51,16 @@ GLuint plano(int res, int pos) {
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(3, GL_FLOAT, 0, vertices.data());
 
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glNormal3f(0.0f, 0.0f, 1.0f);
 
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glColor3f(0.4, 0.4, 0.4);
+	glDrawElements(GL_QUADS, indices.size(), GL_UNSIGNED_INT, indices.data());
+	/*
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glColor3f(0, 0, 0);
 	glDrawElements(GL_QUADS, indices.size(), GL_UNSIGNED_INT, indices.data());
-
+	*/
 	glDisableClientState(GL_VERTEX_ARRAY);
 
 	glEndList();
@@ -62,24 +69,33 @@ GLuint plano(int res, int pos) {
 
 void onIdle()
 {
-	cam[3] += giro / 1000; //+ velocidad / 1000;
-	if (cam[3] > 100 || cam[3] < -100) cam[3] = 0;
-	cam[0] = cam[3] + giro;
+	angulo += velocidad * giro / 1000; 
+	
+	cam[3] = cos(angulo) * 2000;
+	cam[4] = sin(angulo) * 2000;
+	cam[5] += altura * velocidad * 2;
+	if (cam[5] > 1000) cam[5] = 1000;
+	if (cam[5] < -1000) cam[5] = -1000;
 
-	cam[4] -= (1 - abs(giro)) * velocidad / 1000;
-	if (cam[4] > 100 || cam[4] < -100) cam[4] = 0;
-	cam[1] = cam[4] - 1 + giro;
+	cam[0] += cam[3] * velocidad / 100000;
+	if (cam[0] > 200) cam[0] = 200;
+	if (cam[0] < -200) cam[0] = -200;
 
-	cam[5] += altura * velocidad / 1000;
-	if (cam[5] < 2) cam[5] = 2;
-	cam[2] = cam[5] - altura;
+	cam[1] += cam[4] * velocidad / 100000;
+	if (cam[1] > 200) cam[1] = 200;
+	if (cam[1] < -200) cam[1] = -200;
 
+	cam[2] += cam[5] * velocidad / 100000;
+	if (cam[2] > 50) cam[2] = 50;
+	if (cam[2] < 2) cam[2] = 2;
+
+	//printf("cam: %f, %f, %f, %f, %f, %f\n", cam[0], cam[1], cam[2], cam[3], cam[4], cam[5]);
 	glutPostRedisplay();
 }
 
 void init()
 {
-	suelo = plano(300, 0);
+	suelo = plano(DIM_ESPACIO, 0);
 }
 
 void display()
@@ -90,10 +106,49 @@ void display()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
+	glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+	glEnable(GL_COLOR_MATERIAL);
+
+	glEnable(GL_LIGHTING);
+	
+	glEnable(GL_LIGHT1);
+	GLfloat AmbSol[] = { 0.1, 0.1, 0.1, 1.0 };
+	GLfloat DifSol[] = { 1.0, 1.0, 0.9, 1.0 };
+	GLfloat SpecSol[] = { 1.0, 1.0, 1.0, 1.0 };
+	GLfloat posSol[] = { 1.0, 1.0, 1.0, 0.0 };
+	glLightfv(GL_LIGHT1, GL_AMBIENT, AmbSol);
+	glLightfv(GL_LIGHT1, GL_DIFFUSE, DifSol);
+	glLightfv(GL_LIGHT1, GL_SPECULAR, SpecSol);
+	glLightfv(GL_LIGHT1, GL_POSITION, posSol);
+	
+	if (luces)
+	{
+		GLfloat dir[] = { cam[3] - cam[0], cam[4] - cam[1], cam[5] - cam[2] };
+
+		glEnable(GL_LIGHT2);
+		GLfloat posFoc1[] = { cam[0] - 0.5f, cam[1], cam[2], 1.0 };
+		glLightfv(GL_LIGHT2, GL_POSITION, posFoc1);
+		glLightfv(GL_LIGHT2, GL_SPOT_DIRECTION, dir);
+		glLightf(GL_LIGHT2, GL_SPOT_CUTOFF, 25);
+		glLightf(GL_LIGHT2, GL_SPOT_EXPONENT, 10);
+
+		glEnable(GL_LIGHT3);
+		GLfloat posFoc2[] = { cam[0] + 0.5f, cam[1], cam[2], 1.0 };
+		glLightfv(GL_LIGHT3, GL_POSITION, posFoc2);
+		glLightfv(GL_LIGHT3, GL_SPOT_DIRECTION, dir);
+		glLightf(GL_LIGHT3, GL_SPOT_CUTOFF, 25);
+		glLightf(GL_LIGHT3, GL_SPOT_EXPONENT, 10);
+	}
+	else
+	{
+		glDisable(GL_LIGHT2);
+		glDisable(GL_LIGHT3);
+	}
+
 	gluLookAt(cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], cam[6], cam[7], cam[8]);
 
 	glPushMatrix();
-	glCallList(suelo);
+		glCallList(suelo);
 	glPopMatrix();
 
 	glutSwapBuffers();
@@ -104,7 +159,7 @@ void reshape(GLint w, GLint h)
 	glViewport(0, 0, w, h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(45, w / h, 1, 50);
+	gluPerspective(45, w / h, 1, 400);
 }
 
 void teclado(unsigned char tecla, int x, int y)
@@ -113,6 +168,7 @@ void teclado(unsigned char tecla, int x, int y)
 	{
 	case 'a': if (velocidad < 10) velocidad += 1; break;
 	case 'z': if (velocidad > 0) velocidad -= 1; break;
+	case 'l': luces = !luces;
 	}
 	glutPostRedisplay();
 }
@@ -132,8 +188,9 @@ void onMotion(int x, int y)
 void onPassiveMotion(int x, int y)
 {
 	giro = (float) (Wx / 2 - x) / (Wx / 2);
+	if (giro < 0.05 && giro > -0.05) giro = 0;
 	altura = (float) - y / (Wy / 2) + 1;
-	printf("giro: %f   altura: %f\n", giro, altura);
+	//printf("giro: %f   altura: %f\n", giro, altura);
 	glutPostRedisplay();
 }
 
