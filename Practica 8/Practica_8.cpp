@@ -1,16 +1,22 @@
 #define PROYECTO "Practica 8"
 
 #include <iostream>	
+#include <sstream>
 #include <cmath>
 #include <codebase.h>
 #include <gl\freeglut.h>
 #include <vector>
+#include <freeimage/FreeImage.h>
 
 GLuint suelo;
 
 const int DIM_ESPACIO = 400;
 
+const int NUM_METS = 20;
+
 const int Wx = 1200, Wy = 700;
+
+static int FPS = 60;
 
 static float cam[9] = { 0, 0, 2, 0, 1, 2, 0, 0, 1 };
 
@@ -19,6 +25,16 @@ static double velocidad = 1;
 static float giro = 0, altura = 0, angulo = 0;
 
 static bool luces = false;
+
+struct Meteorito {
+	float pos[3];
+	float dir[3];
+	float init[3];
+	float tamaño;
+	float velocidad;
+};
+
+Meteorito mets[NUM_METS];
 
 GLuint plano(int res, int pos) {
 	GLuint id = glGenLists(1);
@@ -52,7 +68,6 @@ GLuint plano(int res, int pos) {
 	glVertexPointer(3, GL_FLOAT, 0, vertices.data());
 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	glColor3f(0.4, 0.4, 0.4);
 	glDrawElements(GL_QUADS, indices.size(), GL_UNSIGNED_INT, indices.data());
 
 	glDisableClientState(GL_VERTEX_ARRAY);
@@ -61,8 +76,98 @@ GLuint plano(int res, int pos) {
 	return id;
 }
 
+void loadImageFile(char* nombre)
+// Uso de FreeImage para cargar la imagen en cualquier formato
+// nombre: nombre del fichero con extensión en el mismo directorio que el proyecto
+// o con su path completo
+{
+	// Detección del formato, lectura y conversion a BGRA
+	FREE_IMAGE_FORMAT formato = FreeImage_GetFileType(nombre, 0);
+	FIBITMAP* imagen = FreeImage_Load(formato, nombre);
+	FIBITMAP* imagen32b = FreeImage_ConvertTo32Bits(imagen);
+	// Lectura de dimensiones y colores
+	int w = FreeImage_GetWidth(imagen32b);
+	int h = FreeImage_GetHeight(imagen32b);
+	GLubyte* texeles = FreeImage_GetBits(imagen32b);
+	// Carga como textura actual
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_BGRA,
+		GL_UNSIGNED_BYTE, texeles);
+	// Liberar recursos
+	FreeImage_Unload(imagen);
+	FreeImage_Unload(imagen32b);
+}
+
+void saveScreenshot(char* nombre, int ancho, int alto)
+// Utiliza FreeImage para grabar un png
+// nombre: Nombre del fichero con extensión p.e. salida.png
+// ancho: Ancho del viewport en pixeles
+// alto: Alto del viewport en pixeles
+{
+	int pix = ancho * alto;
+	BYTE* pixels = new BYTE[3 * pix];
+	glReadBuffer(GL_FRONT);
+	glReadPixels(0, 0, ancho, alto, GL_BGR, GL_UNSIGNED_BYTE, pixels);
+	FIBITMAP* img = FreeImage_ConvertFromRawBits(pixels, ancho, alto,
+		ancho * 3, 24, 0xFF0000, 0x00FF00, 0x0000FF, false);
+	FreeImage_Save(FIF_PNG, img, nombre, 0);
+	delete pixels;
+}
+
+void loadTexture()
+// Funcion de carga de texturas e inicializacion
+{
+	//1a. GENERAR UN OBJETO TEXTURA
+	GLuint tex0;
+	glGenTextures(1, &tex0);
+	//1b. ACTIVAR EL OBJETO TEXTURA
+	glBindTexture(GL_TEXTURE_2D, tex0);
+	//1c. CARGAR LA IMAGEN QUE SERVIRA DE TEXTURA
+	FREE_IMAGE_FORMAT formato = FreeImage_GetFileType("upv.jpg", 0);
+	// Automatically detects the format
+	FIBITMAP* imagen = FreeImage_Load(formato, "upv.jpg");
+	if (imagen == NULL) cerr << endl << "NO SE ENCONTRO LA IMAGEN" << endl;
+	FIBITMAP* imagen32b = FreeImage_ConvertTo32Bits(imagen);
+	int w = FreeImage_GetWidth(imagen32b);
+	int h = FreeImage_GetHeight(imagen32b);
+	GLubyte* pixeles = FreeImage_GetBits(imagen32b);
+	// FreeImage loads in BGR format, so you need GL_BGRA.
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, pixeles);
+	FreeImage_Unload(imagen);
+	FreeImage_Unload(imagen32b);
+	//1d. HABILITAR LAS TEXTURAS
+	glEnable(GL_TEXTURE_2D);
+	//2a. SELECCIONAR EL OBJETO TEXTURA
+	//glBindTexture(GL_TEXTURE_2D,tex0
+	//2b. DEFINIR COMO SE APLICARÁ LA TEXTURA EN ESE OBJETO
+	// Texel menor que pixel
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	// Texel mayor que pixel
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	// La textura se repite en abcisas
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	// La textura se repite en ordenadas
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	//2c. DEFINIR LA FORMA DE COMBINAR
+	// Asigna solo el color de la textura al fragmento
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+}
+
 void onIdle()
 {
+	static int antes = 0;
+	int ahora, tiempo_transcurrido;
+	ahora = glutGet(GLUT_ELAPSED_TIME);
+	tiempo_transcurrido = ahora - antes;
+
+	FPS++;
+	if (tiempo_transcurrido > 1000) {
+		stringstream titulo; 
+		titulo << PROYECTO << "		FPS: " << FPS;
+		glutSetWindowTitle(titulo.str().c_str());
+		FPS = 0;
+		antes = ahora;
+	}
+
 	angulo += velocidad * giro / 1000;
 
 	cam[3] = cos(angulo) * 2000;
@@ -83,13 +188,44 @@ void onIdle()
 	if (cam[2] > 50) cam[2] = 50;
 	if (cam[2] < 2) cam[2] = 2;
 
-	//printf("cam: %f, %f, %f, %f, %f, %f\n", cam[0], cam[1], cam[2], cam[3], cam[4], cam[5]);
+	for (int i = 0; i < NUM_METS; i++) {
+		mets[i].pos[0] += (mets[i].dir[0] * mets[i].velocidad / 1000);
+		mets[i].pos[1] += (mets[i].dir[1] * mets[i].velocidad / 1000);
+		mets[i].pos[2] += (mets[i].dir[2] * mets[i].velocidad / 1000);
+		if (fabs(mets[i].pos[0]) > 200 - mets[i].tamaño / 2 || fabs(mets[i].pos[1]) > 200 - mets[i].tamaño / 2
+			|| mets[i].pos[2] < mets[i].tamaño) {
+			mets[i].pos[0] = mets[i].init[0];
+			mets[i].pos[1] = mets[i].init[1];
+			mets[i].pos[2] = mets[i].init[2];
+		}
+	}
+
 	glutPostRedisplay();
 }
 
 void init()
 {
 	suelo = plano(DIM_ESPACIO, 0);
+
+	for (int i = 0; i < NUM_METS; i++) {
+		mets[i].dir[0] = cb::random(-2, 2);
+		mets[i].dir[1] = cb::random(-2, 2);
+		mets[i].dir[2] = cb::random(-4, -1);
+
+		mets[i].pos[0] = cb::random(- 150, 150);
+		mets[i].pos[1] = cb::random(- 150, 150);
+		mets[i].pos[2] = cb::random(150, 200);
+
+		mets[i].init[0] = mets[i].pos[0];
+		mets[i].init[1] = mets[i].pos[1];
+		mets[i].init[2] = mets[i].pos[2];
+
+		mets[i].velocidad = cb::random(10, 30);
+
+		mets[i].tamaño = cb::random(2, 15);
+	}
+
+	//texturaSuelo = loadTexture("suelo.jpg");
 }
 
 void display()
@@ -167,9 +303,16 @@ void display()
 	glShadeModel(GL_FLAT);
 
 	glPushMatrix();
-	glNormal3f(0, 0, 1);
-	glCallList(suelo);
+		glNormal3f(0, 0, 1);
+		glCallList(suelo);
 	glPopMatrix();
+	
+	for (int i = 0; i < NUM_METS; i++) {
+		glPushMatrix();
+			glTranslatef(mets[i].pos[0], mets[i].pos[1], mets[i].pos[2]);
+			glutSolidSphere(mets[i].tamaño, 16, 16);
+		glPopMatrix();
+	}
 
 	glutSwapBuffers();
 }
@@ -211,12 +354,12 @@ void onPassiveMotion(int x, int y)
 	if (giro < 0.05 && giro > -0.05) giro = 0;
 	altura = (float)(Wy / 2 - y) / Wy;
 	if (altura < 0.05 && altura > -0.05) altura = 0;
-	//printf("giro: %f   altura: %f\n", giro, altura);
 	glutPostRedisplay();
 }
 
 int main(int argc, char** argv)
 {
+	FreeImage_Initialise();
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 	glutInitWindowSize(Wx, Wy);
@@ -232,4 +375,5 @@ int main(int argc, char** argv)
 	glutPassiveMotionFunc(onPassiveMotion);
 	init();
 	glutMainLoop();
+	FreeImage_DeInitialise();
 }
