@@ -8,9 +8,9 @@
 #include <vector>
 #include <freeimage/FreeImage.h>
 
-GLuint suelo;
+GLuint suelo, textura_suelo, textura_meteoritos, textura_espacio;
 
-const int DIM_ESPACIO = 400;
+const int DIM_ESPACIO = 100;
 
 const int NUM_METS = 20;
 
@@ -20,11 +20,13 @@ static int FPS = 60;
 
 static float cam[9] = { 0, 0, 2, 0, 1, 2, 0, 0, 1 };
 
-static double velocidad = 1;
+static double velocidad = 0;
 
-static float giro = 0, altura = 0, angulo = 0;
+static float giro = 0, altura = 0;
 
 static bool luces = false;
+
+float prueba = 0;
 
 struct Meteorito {
 	float pos[3];
@@ -36,124 +38,106 @@ struct Meteorito {
 
 Meteorito mets[NUM_METS];
 
+GLuint loadTexture(const char* nombre)
+{
+	GLuint id;
+
+	glGenTextures(1, &id);
+	glBindTexture(GL_TEXTURE_2D, id);
+
+	FIBITMAP* imagen = FreeImage_Load(FIF_JPEG, nombre);
+	FIBITMAP* imagen32b = FreeImage_ConvertTo32Bits(imagen);
+	int w = FreeImage_GetWidth(imagen32b);
+	int h = FreeImage_GetHeight(imagen32b);
+
+	GLubyte* texeles = FreeImage_GetBits(imagen32b);
+
+	int dataSize = w * h * 4;
+	GLubyte* texCopy = new GLubyte[dataSize];
+	memcpy(texCopy, texeles, dataSize);
+
+	FreeImage_Unload(imagen);
+	FreeImage_Unload(imagen32b);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_BGRA, GL_UNSIGNED_BYTE, texCopy);
+
+	delete[] texCopy;
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	/*
+	glEnable(GL_TEXTURE_GEN_S);
+	glEnable(GL_TEXTURE_GEN_T);
+
+	const GLfloat planoS[] = { 1,0,0,0 };
+	const GLfloat planoT[] = { 0,1,0,0 };
+	glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
+	glTexGenfv(GL_S, GL_OBJECT_PLANE, planoS);
+	glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
+	glTexGenfv(GL_T, GL_OBJECT_PLANE, planoT);
+	*/
+	// Configura la proyeccion con camara ortgrafica estandar
+	/*glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	glOrtho(-1, 1, -1, 1, -10, 10);
+	// Dibuja un ppligono textura que ocupa toda la ventana
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix(); // Salva el estado
+	glLoadIdentity();
+	glPushAttrib(GL_ENABLE_BIT); // Salva el estado de habilitados
+	glDisable(GL_DEPTH_TEST); // Deshabilita el z-buffer
+	glDisable(GL_LIGHTING); // Deshabilita la iluminacion
+	glEnable(GL_TEXTURE_2D); // Habilita las texturas por si acaso
+	glDisable(GL_TEXTURE_GEN_S); // Deshabilita la generacion automatica por si acaso
+	glDisable(GL_TEXTURE_GEN_T);
+	glBegin(GL_POLYGON); // Quad texturado
+	glTexCoord2f(0, 0);
+	glVertex3f(-1, -1, 0);
+	glTexCoord2f(1, 0);
+	glVertex3f(1, -1, 0);
+	glTexCoord2f(1, 1);
+	glVertex3f(1, 1, 0);
+	glTexCoord2f(0, 1);
+	glVertex3f(-1, 1, 0);
+	glEnd();
+	glPopMatrix(); // Restablece la modelview
+	glPopAttrib(); // Restablece lo que hubiera habilitado
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix(); // Restablece la projetion
+	glMatrixMode(GL_MODELVIEW); // Pone la modelview como corriente*/
+	return id;
+}
+
 GLuint plano(int res, int pos) {
 	GLuint id = glGenLists(1);
+
 	glNewList(id, GL_COMPILE);
 
-	std::vector<cb::Vec3> vertices = {};
+	glBegin(GL_QUADS);
 
-	float div = DIM_ESPACIO / res;
-	for (int i = 0; i <= res; i++) {
-		for (int j = 0; j <= res; j++) {
-			cb::Vec3 v;
-			v.x = -DIM_ESPACIO / 2 + i * div;
-			v.y = -DIM_ESPACIO / 2 + j * div;
-			v.z = pos;
-			vertices.insert(vertices.end(), v);
-		}
-	}
+	glNormal3f(0, 0, 1);
 
-	std::vector<GLuint> indices;
-	for (int i = 0; i < res; i++) {
-		for (int j = 0; j < res; j++) {
-			int n = res + 1;
-			indices.push_back(i + j * n);
-			indices.push_back(i + 1 + j * n);
-			indices.push_back(i + 1 + (j + 1) * n);
-			indices.push_back(i + (j + 1) * n);
-		}
-	}
+	float size = DIM_ESPACIO / 2;
+	glTexCoord2f(0, 0); glVertex3f(- size, - size, pos);
+	glTexCoord2f(1, 0); glVertex3f(size, - size, pos);
+	glTexCoord2f(1, 1); glVertex3f(size, size, pos);
+	glTexCoord2f(0, 1); glVertex3f(- size, size, pos);
 
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glVertexPointer(3, GL_FLOAT, 0, vertices.data());
-
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	glDrawElements(GL_QUADS, indices.size(), GL_UNSIGNED_INT, indices.data());
-
-	glDisableClientState(GL_VERTEX_ARRAY);
+	glEnd();
 
 	glEndList();
 	return id;
 }
 
-void loadImageFile(char* nombre)
-// Uso de FreeImage para cargar la imagen en cualquier formato
-// nombre: nombre del fichero con extensión en el mismo directorio que el proyecto
-// o con su path completo
-{
-	// Detección del formato, lectura y conversion a BGRA
-	FREE_IMAGE_FORMAT formato = FreeImage_GetFileType(nombre, 0);
-	FIBITMAP* imagen = FreeImage_Load(formato, nombre);
-	FIBITMAP* imagen32b = FreeImage_ConvertTo32Bits(imagen);
-	// Lectura de dimensiones y colores
-	int w = FreeImage_GetWidth(imagen32b);
-	int h = FreeImage_GetHeight(imagen32b);
-	GLubyte* texeles = FreeImage_GetBits(imagen32b);
-	// Carga como textura actual
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_BGRA,
-		GL_UNSIGNED_BYTE, texeles);
-	// Liberar recursos
-	FreeImage_Unload(imagen);
-	FreeImage_Unload(imagen32b);
-}
-
-void saveScreenshot(char* nombre, int ancho, int alto)
-// Utiliza FreeImage para grabar un png
-// nombre: Nombre del fichero con extensión p.e. salida.png
-// ancho: Ancho del viewport en pixeles
-// alto: Alto del viewport en pixeles
-{
-	int pix = ancho * alto;
-	BYTE* pixels = new BYTE[3 * pix];
-	glReadBuffer(GL_FRONT);
-	glReadPixels(0, 0, ancho, alto, GL_BGR, GL_UNSIGNED_BYTE, pixels);
-	FIBITMAP* img = FreeImage_ConvertFromRawBits(pixels, ancho, alto,
-		ancho * 3, 24, 0xFF0000, 0x00FF00, 0x0000FF, false);
-	FreeImage_Save(FIF_PNG, img, nombre, 0);
-	delete pixels;
-}
-
-void loadTexture()
-// Funcion de carga de texturas e inicializacion
-{
-	//1a. GENERAR UN OBJETO TEXTURA
-	GLuint tex0;
-	glGenTextures(1, &tex0);
-	//1b. ACTIVAR EL OBJETO TEXTURA
-	glBindTexture(GL_TEXTURE_2D, tex0);
-	//1c. CARGAR LA IMAGEN QUE SERVIRA DE TEXTURA
-	FREE_IMAGE_FORMAT formato = FreeImage_GetFileType("upv.jpg", 0);
-	// Automatically detects the format
-	FIBITMAP* imagen = FreeImage_Load(formato, "upv.jpg");
-	if (imagen == NULL) cerr << endl << "NO SE ENCONTRO LA IMAGEN" << endl;
-	FIBITMAP* imagen32b = FreeImage_ConvertTo32Bits(imagen);
-	int w = FreeImage_GetWidth(imagen32b);
-	int h = FreeImage_GetHeight(imagen32b);
-	GLubyte* pixeles = FreeImage_GetBits(imagen32b);
-	// FreeImage loads in BGR format, so you need GL_BGRA.
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, pixeles);
-	FreeImage_Unload(imagen);
-	FreeImage_Unload(imagen32b);
-	//1d. HABILITAR LAS TEXTURAS
-	glEnable(GL_TEXTURE_2D);
-	//2a. SELECCIONAR EL OBJETO TEXTURA
-	//glBindTexture(GL_TEXTURE_2D,tex0
-	//2b. DEFINIR COMO SE APLICARÁ LA TEXTURA EN ESE OBJETO
-	// Texel menor que pixel
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	// Texel mayor que pixel
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	// La textura se repite en abcisas
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	// La textura se repite en ordenadas
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	//2c. DEFINIR LA FORMA DE COMBINAR
-	// Asigna solo el color de la textura al fragmento
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-}
-
 void onIdle()
 {
+	prueba += 0.05;
+
 	static int antes = 0;
 	int ahora, tiempo_transcurrido;
 	ahora = glutGet(GLUT_ELAPSED_TIME);
@@ -168,32 +152,34 @@ void onIdle()
 		antes = ahora;
 	}
 
-	angulo += velocidad * giro / 1000;
-
-	cam[3] = cos(angulo) * 2000;
-	cam[4] = sin(angulo) * 2000;
-	cam[5] += altura * velocidad;
-	if (cam[5] > 1000) cam[5] = 1000;
-	if (cam[5] < -1000) cam[5] = -1000;
+	cam[3] = sin(giro) * 1000;
+	cam[4] = cos(giro) * 1000;
+	cam[5] = altura * 1000;
 
 	cam[0] += cam[3] * velocidad / 100000;
-	if (cam[0] > 200) cam[0] = 200;
-	if (cam[0] < -200) cam[0] = -200;
+	if (cam[0] > 400) cam[0] = 400;
+	if (cam[0] < - 400) cam[0] = - 400;
 
 	cam[1] += cam[4] * velocidad / 100000;
-	if (cam[1] > 200) cam[1] = 200;
-	if (cam[1] < -200) cam[1] = -200;
+	if (cam[1] > 400) cam[1] = 400;
+	if (cam[1] < - 400) cam[1] = - 400;
 
 	cam[2] += cam[5] * velocidad / 100000;
-	if (cam[2] > 50) cam[2] = 50;
-	if (cam[2] < 2) cam[2] = 2;
+	if (cam[2] > 150) cam[2] = 150;
+	if (cam[2] < -50) cam[2] = - 50;
 
+	if (cam[0] < DIM_ESPACIO / 2 + 2 && cam[0] > - DIM_ESPACIO / 2 - 2 && 
+		cam[1] < DIM_ESPACIO / 2 + 2 && cam[1] > - DIM_ESPACIO / 2 - 2) {
+		if (cam[2] < 2 && cam[2] > 0) cam[2] = 2;
+		if (cam[2] > - 2 && cam[2] < 0) cam[2] = -2;
+	}
+	
 	for (int i = 0; i < NUM_METS; i++) {
 		mets[i].pos[0] += (mets[i].dir[0] * mets[i].velocidad / 1000);
 		mets[i].pos[1] += (mets[i].dir[1] * mets[i].velocidad / 1000);
 		mets[i].pos[2] += (mets[i].dir[2] * mets[i].velocidad / 1000);
-		if (fabs(mets[i].pos[0]) > 200 - mets[i].tamaño / 2 || fabs(mets[i].pos[1]) > 200 - mets[i].tamaño / 2
-			|| mets[i].pos[2] < mets[i].tamaño) {
+		if (fabs(mets[i].pos[0]) > 400 - mets[i].tamaño / 2 || fabs(mets[i].pos[1]) 
+			> 400 - mets[i].tamaño / 2 || fabs(mets[i].pos[2]) > 200) {
 			mets[i].pos[0] = mets[i].init[0];
 			mets[i].pos[1] = mets[i].init[1];
 			mets[i].pos[2] = mets[i].init[2];
@@ -210,11 +196,11 @@ void init()
 	for (int i = 0; i < NUM_METS; i++) {
 		mets[i].dir[0] = cb::random(-2, 2);
 		mets[i].dir[1] = cb::random(-2, 2);
-		mets[i].dir[2] = cb::random(-4, -1);
+		mets[i].dir[2] = cb::random(-2, 2);
 
-		mets[i].pos[0] = cb::random(- 150, 150);
-		mets[i].pos[1] = cb::random(- 150, 150);
-		mets[i].pos[2] = cb::random(150, 200);
+		mets[i].pos[0] = cb::random(- 250, 250);
+		mets[i].pos[1] = cb::random(- 250, 250);
+		mets[i].pos[2] = cb::random(- 250, 250);
 
 		mets[i].init[0] = mets[i].pos[0];
 		mets[i].init[1] = mets[i].pos[1];
@@ -225,7 +211,9 @@ void init()
 		mets[i].tamaño = cb::random(2, 15);
 	}
 
-	//texturaSuelo = loadTexture("suelo.jpg");
+	textura_suelo = loadTexture("Texturas/Textura_suelo.jpg");
+	textura_meteoritos = loadTexture("Texturas/Textura_meteorito.jpg");
+	textura_espacio = loadTexture("Texturas/Textura_espacio.jpg");
 }
 
 void display()
@@ -233,6 +221,7 @@ void display()
 	glEnable(GL_DEPTH_TEST);
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
@@ -252,10 +241,10 @@ void display()
 	gluLookAt(cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], cam[6], cam[7], cam[8]);
 
 	glEnable(GL_LIGHT1);
-	GLfloat AmbSol[] = { 0.2, 0.2, 0.2, 1 };
+	GLfloat AmbSol[] = { 0.3, 0.3, 0.3, 1 };
 	GLfloat DifSol[] = { 0.6, 0.6, 0.6, 1 };
 	GLfloat SpecSol[] = { 0.9, 0.9, 0.9, 1 };
-	GLfloat posSol[] = { 1000, 1000, 1000, 0 };
+	GLfloat posSol[] = { 1000, 1000, 1000, 1 };
 	glLightfv(GL_LIGHT1, GL_AMBIENT, AmbSol);
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, DifSol);
 	glLightfv(GL_LIGHT1, GL_SPECULAR, SpecSol);
@@ -271,28 +260,28 @@ void display()
 			dirFoc[2] /= norm;
 		}
 		GLfloat AmbFoc[] = { 0.05, 0.05, 0.05, 1 };
-		GLfloat DifFoc[] = { 1, 1, 1, 1 };
-		GLfloat SpecFoc[] = { 1, 1, 1, 1 };
+		GLfloat DifFoc[] = { 0.9, 0.9, 1, 1 };
+		GLfloat SpecFoc[] = { 0.9, 0.9, 0.9, 1 };
 
 		glEnable(GL_LIGHT2);
 		glLightfv(GL_LIGHT2, GL_AMBIENT, AmbFoc);
 		glLightfv(GL_LIGHT2, GL_DIFFUSE, DifFoc);
 		glLightfv(GL_LIGHT2, GL_SPECULAR, SpecFoc);
-		GLfloat posFoc1[] = { cam[0] + sin(angulo) * 3, cam[1] - cos(angulo) * 3, cam[2], 1 };
+		GLfloat posFoc1[] = { cam[0] + cos(giro) * 3, cam[1] - sin(giro) * 3, cam[2], 1 };
 		glLightfv(GL_LIGHT2, GL_POSITION, posFoc1);
 		glLightfv(GL_LIGHT2, GL_SPOT_DIRECTION, dirFoc);
 		glLightf(GL_LIGHT2, GL_SPOT_CUTOFF, 7);
-		glLightf(GL_LIGHT2, GL_SPOT_EXPONENT, 60);
+		glLightf(GL_LIGHT2, GL_SPOT_EXPONENT, 100);
 
 		glEnable(GL_LIGHT3);
 		glLightfv(GL_LIGHT3, GL_AMBIENT, AmbFoc);
 		glLightfv(GL_LIGHT3, GL_DIFFUSE, DifFoc);
 		glLightfv(GL_LIGHT3, GL_SPECULAR, SpecFoc);
-		GLfloat posFoc2[] = { cam[0] - sin(angulo) * 3, cam[1] + cos(angulo) * 3, cam[2], 1 };
+		GLfloat posFoc2[] = { cam[0] - cos(giro) * 3, cam[1] + sin(giro) * 3, cam[2], 1 };
 		glLightfv(GL_LIGHT3, GL_POSITION, posFoc2);
 		glLightfv(GL_LIGHT3, GL_SPOT_DIRECTION, dirFoc);
-		glLightf(GL_LIGHT3, GL_SPOT_CUTOFF, 7);
-		glLightf(GL_LIGHT3, GL_SPOT_EXPONENT, 60);
+		glLightf(GL_LIGHT3, GL_SPOT_CUTOFF, 8);
+		glLightf(GL_LIGHT3, GL_SPOT_EXPONENT, 80);
 	}
 	else
 	{
@@ -300,20 +289,27 @@ void display()
 		glDisable(GL_LIGHT3);
 	}
 
-	glShadeModel(GL_FLAT);
+	//glShadeModel(GL_FLAT);
+
+	glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
+
+	glEnable(GL_TEXTURE_2D);
 
 	glPushMatrix();
-		glNormal3f(0, 0, 1);
+		glBindTexture(GL_TEXTURE_2D, textura_suelo);
 		glCallList(suelo);
 	glPopMatrix();
-	
+
+	glDisable(GL_TEXTURE_2D);
+
 	for (int i = 0; i < NUM_METS; i++) {
 		glPushMatrix();
 			glTranslatef(mets[i].pos[0], mets[i].pos[1], mets[i].pos[2]);
-			glutSolidSphere(mets[i].tamaño, 16, 16);
+			glScalef(mets[i].tamaño, mets[i].tamaño,mets[i].tamaño);
+			glutSolidIcosahedron();
 		glPopMatrix();
 	}
-
+	
 	glutSwapBuffers();
 }
 
@@ -322,14 +318,14 @@ void reshape(GLint w, GLint h)
 	glViewport(0, 0, w, h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(45, w / h, 1, 400);
+	gluPerspective(45, w / h, 1, 1000);
 }
 
 void teclado(unsigned char tecla, int x, int y)
 {
 	switch (tecla)
 	{
-	case 'a': if (velocidad < 5) velocidad += 0.5; break;
+	case 'a': if (velocidad < 10) velocidad += 1; break;
 	case 'z': if (velocidad > 0) velocidad -= 1; break;
 	case 'l': luces = !luces; if (luces) printf("Luces activadas\n"); else printf("Luces desactivadas\n"); break;
 	}
@@ -350,10 +346,8 @@ void onMotion(int x, int y)
 
 void onPassiveMotion(int x, int y)
 {
-	giro = (float)(Wx / 2 - x) / (Wx / 2);
-	if (giro < 0.05 && giro > -0.05) giro = 0;
-	altura = (float)(Wy / 2 - y) / Wy;
-	if (altura < 0.05 && altura > -0.05) altura = 0;
+	giro = (float) x / Wx * 2 * PI;
+	altura = (float) (Wy / 2 - y) / (Wy / 2);
 	glutPostRedisplay();
 }
 
