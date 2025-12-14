@@ -8,7 +8,7 @@
 #include <vector>
 #include <freeimage/FreeImage.h>
 
-GLuint suelo, textura_suelo, textura_meteoritos, textura_espacio;
+GLuint suelo, meteor, textura_suelo, textura_meteoritos, textura_espacio;
 
 const int DIM_ESPACIO = 100;
 
@@ -18,7 +18,7 @@ const int Wx = 1200, Wy = 700;
 
 static int FPS = 60;
 
-static float cam[9] = { 0, 0, 2, 0, 1, 2, 0, 0, 1 };
+static float cam[9] = { 0, 0, 4, 0, 1, 4, 0, 0, 1 };
 
 static double velocidad = 0;
 
@@ -26,11 +26,12 @@ static float giro = 0, altura = 0;
 
 static bool luces = false;
 
-float prueba = 0;
+static float angulo = 0;
 
 struct Meteorito {
 	float pos[3];
 	float dir[3];
+	float giro[3];
 	float init[3];
 	float tamaño;
 	float velocidad;
@@ -80,22 +81,21 @@ GLuint loadTexture(const char* nombre)
 	glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
 	glTexGenfv(GL_T, GL_OBJECT_PLANE, planoT);
 	*/
-	// Configura la proyeccion con camara ortgrafica estandar
-	/*glMatrixMode(GL_PROJECTION);
+	/*
+	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
 	glOrtho(-1, 1, -1, 1, -10, 10);
-	// Dibuja un ppligono textura que ocupa toda la ventana
 	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix(); // Salva el estado
+	glPushMatrix();
 	glLoadIdentity();
-	glPushAttrib(GL_ENABLE_BIT); // Salva el estado de habilitados
-	glDisable(GL_DEPTH_TEST); // Deshabilita el z-buffer
-	glDisable(GL_LIGHTING); // Deshabilita la iluminacion
-	glEnable(GL_TEXTURE_2D); // Habilita las texturas por si acaso
-	glDisable(GL_TEXTURE_GEN_S); // Deshabilita la generacion automatica por si acaso
+	glPushAttrib(GL_ENABLE_BIT);
+	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_LIGHTING);
+	glEnable(GL_TEXTURE_2D);
+	glDisable(GL_TEXTURE_GEN_S);
 	glDisable(GL_TEXTURE_GEN_T);
-	glBegin(GL_POLYGON); // Quad texturado
+	glBegin(GL_POLYGON);
 	glTexCoord2f(0, 0);
 	glVertex3f(-1, -1, 0);
 	glTexCoord2f(1, 0);
@@ -105,43 +105,269 @@ GLuint loadTexture(const char* nombre)
 	glTexCoord2f(0, 1);
 	glVertex3f(-1, 1, 0);
 	glEnd();
-	glPopMatrix(); // Restablece la modelview
-	glPopAttrib(); // Restablece lo que hubiera habilitado
+	glPopMatrix();
+	glPopAttrib();
 	glMatrixMode(GL_PROJECTION);
-	glPopMatrix(); // Restablece la projetion
-	glMatrixMode(GL_MODELVIEW); // Pone la modelview como corriente*/
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	*/
 	return id;
 }
 
-GLuint plano(int res, int pos) {
+GLuint plano(int pos) 
+{
+	GLuint id = glGenLists(1); 
+
+	glNewList(id, GL_COMPILE); 
+
+	std::vector<cb::Vec3> vertices = {}; 
+	std::vector<GLfloat> texturas;
+
+	for (int i = 0; i <= DIM_ESPACIO; i++) { 
+		for (int j = 0; j <= DIM_ESPACIO; j++) { 
+			cb::Vec3 v; 
+			v.x = -DIM_ESPACIO / 2 + i; 
+			v.y = -DIM_ESPACIO / 2 + j; 
+			v.z = pos; vertices.insert(vertices.end(), v); 
+
+			texturas.push_back((float) i / DIM_ESPACIO);
+			texturas.push_back((float) j / DIM_ESPACIO);
+		} 
+	} 
+
+	std::vector<GLuint> indices; 
+	for (int i = 0; i < DIM_ESPACIO; i++) { 
+		for (int j = 0; j < DIM_ESPACIO; j++) { 
+			int n = DIM_ESPACIO + 1; 
+			indices.push_back(i + j * n); 
+			indices.push_back(i + 1 + j * n); 
+			indices.push_back(i + 1 + (j + 1) * n); 
+			indices.push_back(i + (j + 1) * n); 
+		} 
+	} 
+	
+	glEnableClientState(GL_VERTEX_ARRAY); 
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glVertexPointer(3, GL_FLOAT, 0, vertices.data()); 
+	glTexCoordPointer(2, GL_FLOAT, 0, texturas.data());
+
+	glNormal3f(0, 0, 1);
+
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); 
+
+	glDrawElements(GL_QUADS, indices.size(), GL_UNSIGNED_INT, indices.data()); 
+
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_VERTEX_ARRAY); 
+
+	glEndList(); 
+
+	return id;
+}
+
+cb::Vec3 normalize(cb::Vec3 v)
+{
+	float norm = sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+	if (norm == 0.0f) return cb::Vec3(0, 0, 0);
+	return cb::Vec3(v.x / norm, v.y / norm, v.z / norm);
+}
+
+GLuint meteorito()
+{
 	GLuint id = glGenLists(1);
 
 	glNewList(id, GL_COMPILE);
 
-	glBegin(GL_QUADS);
+	std::vector<cb::Vec3> vertices = {};
+	std::vector<cb::Vec3> normales = {};
+	std::vector<GLfloat> texturas;
 
-	glNormal3f(0, 0, 1);
+	float c = 1.618034;
 
-	float size = DIM_ESPACIO / 2;
-	glTexCoord2f(0, 0); glVertex3f(- size, - size, pos);
-	glTexCoord2f(1, 0); glVertex3f(size, - size, pos);
-	glTexCoord2f(1, 1); glVertex3f(size, size, pos);
-	glTexCoord2f(0, 1); glVertex3f(- size, size, pos);
+	vertices.push_back(cb::Vec3(0, 0, 1.2));
+	normales.push_back(normalize(vertices.back()));
+	texturas.push_back(0.5); 
+	texturas.push_back(1);
 
-	glEnd();
+	vertices.push_back(cb::Vec3(1, 0, 0.4));
+	normales.push_back(normalize(vertices.back()));
+	texturas.push_back(0.8); 
+	texturas.push_back(0.75);
+
+	vertices.push_back(cb::Vec3(0.5, 0.9, 0));
+	normales.push_back(normalize(vertices.back()));
+	texturas.push_back(0.65); 
+	texturas.push_back(0.6);
+
+	vertices.push_back(cb::Vec3(- 0.5, 0.9, 0));
+	normales.push_back(normalize(vertices.back()));
+	texturas.push_back(0.35); 
+	texturas.push_back(0.6);
+
+	vertices.push_back(cb::Vec3(- 1, 0, - 0.2));
+	normales.push_back(normalize(vertices.back()));
+	texturas.push_back(0.15); 
+	texturas.push_back(0.5);
+
+	vertices.push_back(cb::Vec3(- 0.5, - 0.9, 0.2));
+	normales.push_back(normalize(vertices.back()));
+	texturas.push_back(0.35); 
+	texturas.push_back(0.25);
+
+	vertices.push_back(cb::Vec3(0.5, -0.9, -0.1));
+	normales.push_back(normalize(vertices.back()));
+	texturas.push_back(0.65); 
+	texturas.push_back(0.25);
+
+	vertices.push_back(cb::Vec3(0, 0, -1.1));
+	normales.push_back(normalize(vertices.back()));
+	texturas.push_back(0.5); 
+	texturas.push_back(0);
+
+	vertices.push_back(cb::Vec3(0.8, 0.5, 0.6));
+	normales.push_back(normalize(vertices.back()));
+	texturas.push_back(0.75); 
+	texturas.push_back(0.85);
+
+	vertices.push_back(cb::Vec3(- 0.8, 0.4, 0.5));
+	normales.push_back(normalize(vertices.back()));
+	texturas.push_back(0.25); 
+	texturas.push_back(0.85);
+
+	vertices.push_back(cb::Vec3(- 0.6, - 0.5, - 0.6));
+	normales.push_back(normalize(vertices.back()));
+	texturas.push_back(0.25); 
+	texturas.push_back(0.15);
+
+	vertices.push_back(cb::Vec3(0.6, - 0.5, - 0.5));
+	normales.push_back(normalize(vertices.back()));
+	texturas.push_back(0.75); 
+	texturas.push_back(0.15);
+
+	std::vector<GLuint> indices;
+	
+	indices.push_back(0);
+	indices.push_back(1);
+	indices.push_back(8);
+
+	indices.push_back(0);
+	indices.push_back(8);
+	indices.push_back(2);
+
+	indices.push_back(0);
+	indices.push_back(2);
+	indices.push_back(3);
+
+	indices.push_back(0);
+	indices.push_back(3);
+	indices.push_back(9);
+
+	indices.push_back(0);
+	indices.push_back(9);
+	indices.push_back(4);
+
+	indices.push_back(0);
+	indices.push_back(4);
+	indices.push_back(5);
+
+	indices.push_back(0);
+	indices.push_back(5);
+	indices.push_back(6);
+
+	indices.push_back(0);
+	indices.push_back(6);
+	indices.push_back(1);
+
+	indices.push_back(7);
+	indices.push_back(10);
+	indices.push_back(4);
+
+	indices.push_back(7);
+	indices.push_back(4);
+	indices.push_back(9);
+
+	indices.push_back(7);
+	indices.push_back(9);
+	indices.push_back(3);
+
+	indices.push_back(7);
+	indices.push_back(3);
+	indices.push_back(2);
+
+	indices.push_back(7);
+	indices.push_back(2);
+	indices.push_back(11);
+
+	indices.push_back(7);
+	indices.push_back(11);
+	indices.push_back(6);
+
+	indices.push_back(7);
+	indices.push_back(6);
+	indices.push_back(5);
+
+	indices.push_back(7);
+	indices.push_back(5);
+	indices.push_back(10);
+
+	indices.push_back(1);
+	indices.push_back(6);
+	indices.push_back(11);
+
+	indices.push_back(1);
+	indices.push_back(11);
+	indices.push_back(8);
+
+	indices.push_back(2);
+	indices.push_back(8);
+	indices.push_back(11);
+
+	indices.push_back(2);
+	indices.push_back(11);
+	indices.push_back(3);
+
+	indices.push_back(3); 
+	indices.push_back(9); 
+	indices.push_back(10);
+	
+	indices.push_back(3); 
+	indices.push_back(10); 
+	indices.push_back(5);
+
+	indices.push_back(4); 
+	indices.push_back(10); 
+	indices.push_back(9);
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_NORMAL_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glVertexPointer(3, GL_FLOAT, 0, vertices.data());
+	glNormalPointer(GL_FLOAT, 0, normales.data());
+	glTexCoordPointer(2, GL_FLOAT, 0, texturas.data());
+	
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+	glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, indices.data());
+
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_NORMAL_ARRAY);
+	glDisableClientState(GL_VERTEX_ARRAY);
 
 	glEndList();
+
 	return id;
 }
 
 void onIdle()
 {
-	prueba += 0.05;
-
 	static int antes = 0;
 	int ahora, tiempo_transcurrido;
 	ahora = glutGet(GLUT_ELAPSED_TIME);
 	tiempo_transcurrido = ahora - antes;
+
+	angulo += 0.01;
 
 	FPS++;
 	if (tiempo_transcurrido > 1000) {
@@ -168,18 +394,17 @@ void onIdle()
 	if (cam[2] > 150) cam[2] = 150;
 	if (cam[2] < -50) cam[2] = - 50;
 
-	if (cam[0] < DIM_ESPACIO / 2 + 2 && cam[0] > - DIM_ESPACIO / 2 - 2 && 
-		cam[1] < DIM_ESPACIO / 2 + 2 && cam[1] > - DIM_ESPACIO / 2 - 2) {
-		if (cam[2] < 2 && cam[2] > 0) cam[2] = 2;
-		if (cam[2] > - 2 && cam[2] < 0) cam[2] = -2;
+	if (cam[0] < DIM_ESPACIO / 2 + 4 && cam[0] > - DIM_ESPACIO / 2 - 4 && 
+		cam[1] < DIM_ESPACIO / 2 + 4 && cam[1] > - DIM_ESPACIO / 2 - 4) {
+		if (cam[2] < 4 && cam[2] > 2) cam[2] = 4;
+		if (cam[2] > - 4 && cam[2] < - 2) cam[2] = - 4;
 	}
 	
 	for (int i = 0; i < NUM_METS; i++) {
 		mets[i].pos[0] += (mets[i].dir[0] * mets[i].velocidad / 1000);
 		mets[i].pos[1] += (mets[i].dir[1] * mets[i].velocidad / 1000);
 		mets[i].pos[2] += (mets[i].dir[2] * mets[i].velocidad / 1000);
-		if (fabs(mets[i].pos[0]) > 400 - mets[i].tamaño / 2 || fabs(mets[i].pos[1]) 
-			> 400 - mets[i].tamaño / 2 || fabs(mets[i].pos[2]) > 200) {
+		if (fabs(mets[i].pos[0]) > 400 || fabs(mets[i].pos[1]) > 400 || fabs(mets[i].pos[2]) > 400) {
 			mets[i].pos[0] = mets[i].init[0];
 			mets[i].pos[1] = mets[i].init[1];
 			mets[i].pos[2] = mets[i].init[2];
@@ -191,12 +416,18 @@ void onIdle()
 
 void init()
 {
-	suelo = plano(DIM_ESPACIO, 0);
+	suelo = plano(0);
+
+	meteor = meteorito();
 
 	for (int i = 0; i < NUM_METS; i++) {
 		mets[i].dir[0] = cb::random(-2, 2);
 		mets[i].dir[1] = cb::random(-2, 2);
 		mets[i].dir[2] = cb::random(-2, 2);
+
+		mets[i].giro[0] = cb::random(0, 1);
+		mets[i].giro[1] = cb::random(0, 1);
+		mets[i].giro[2] = cb::random(0, 1);
 
 		mets[i].pos[0] = cb::random(- 250, 250);
 		mets[i].pos[1] = cb::random(- 250, 250);
@@ -206,9 +437,9 @@ void init()
 		mets[i].init[1] = mets[i].pos[1];
 		mets[i].init[2] = mets[i].pos[2];
 
-		mets[i].velocidad = cb::random(10, 30);
+		mets[i].velocidad = cb::random(5, 20);
 
-		mets[i].tamaño = cb::random(2, 15);
+		mets[i].tamaño = cb::random(5, 30);
 	}
 
 	textura_suelo = loadTexture("Texturas/Textura_suelo.jpg");
@@ -226,9 +457,9 @@ void display()
 	glLoadIdentity();
 
 	GLfloat material_emission[] = { 0.1, 0.1, 0.1, 1 };
-	GLfloat material_ambient[] = { 0.2, 0.2, 0.2, 1 };
-	GLfloat material_diffuse[] = { 0.6, 0.6, 0.6, 1 };
-	GLfloat material_specular[] = { 0.8, 0.8, 0.8, 1 };
+	GLfloat material_ambient[] = { 0.3, 0.3, 0.3, 1 };
+	GLfloat material_diffuse[] = { 0.9, 0.9, 0.9, 1 };
+	GLfloat material_specular[] = { 1, 1, 1, 1 };
 	GLfloat material_shininess[] = { 30 };
 	glMaterialfv(GL_FRONT, GL_AMBIENT, material_ambient);
 	glMaterialfv(GL_FRONT, GL_DIFFUSE, material_diffuse);
@@ -242,9 +473,9 @@ void display()
 
 	glEnable(GL_LIGHT1);
 	GLfloat AmbSol[] = { 0.3, 0.3, 0.3, 1 };
-	GLfloat DifSol[] = { 0.6, 0.6, 0.6, 1 };
-	GLfloat SpecSol[] = { 0.9, 0.9, 0.9, 1 };
-	GLfloat posSol[] = { 1000, 1000, 1000, 1 };
+	GLfloat DifSol[] = { 0.5, 0.5, 0.5, 1 };
+	GLfloat SpecSol[] = { 0.1, 0.1, 0.1, 1 };
+	GLfloat posSol[] = { 1000, 1000, 1000, 0 };
 	glLightfv(GL_LIGHT1, GL_AMBIENT, AmbSol);
 	glLightfv(GL_LIGHT1, GL_DIFFUSE, DifSol);
 	glLightfv(GL_LIGHT1, GL_SPECULAR, SpecSol);
@@ -289,7 +520,7 @@ void display()
 		glDisable(GL_LIGHT3);
 	}
 
-	//glShadeModel(GL_FLAT);
+	glShadeModel(GL_FLAT);
 
 	glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
 
@@ -300,15 +531,20 @@ void display()
 		glCallList(suelo);
 	glPopMatrix();
 
-	glDisable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, textura_meteoritos);
 
 	for (int i = 0; i < NUM_METS; i++) {
 		glPushMatrix();
 			glTranslatef(mets[i].pos[0], mets[i].pos[1], mets[i].pos[2]);
+			glRotatef(angulo, mets[i].giro[0], mets[i].giro[1], mets[i].giro[2]);
 			glScalef(mets[i].tamaño, mets[i].tamaño,mets[i].tamaño);
-			glutSolidIcosahedron();
+			glCallList(meteor);
 		glPopMatrix();
 	}
+
+	glDisable(GL_TEXTURE_GEN_S);
+	glDisable(GL_TEXTURE_GEN_T);
+	glDisable(GL_TEXTURE_2D);
 	
 	glutSwapBuffers();
 }
