@@ -8,11 +8,13 @@
 #include <vector>
 #include <freeimage/FreeImage.h>
 
-GLuint suelo, meteor, textura_suelo, textura_meteoritos, textura_espacio;
+GLuint suelo, meteor, space, textura_suelo, textura_meteoritos, textura_espacio;
 
-const int DIM_ESPACIO = 100;
+const int DIM_ESPACIO = 1000;
 
-const int NUM_METS = 20;
+const int DIM_PLATAFORMA = 100;
+
+const int NUM_METS = 40;
 
 const int Wx = 1200, Wy = 700;
 
@@ -123,22 +125,22 @@ GLuint plano(int pos)
 	std::vector<cb::Vec3> vertices = {}; 
 	std::vector<GLfloat> texturas;
 
-	for (int i = 0; i <= DIM_ESPACIO; i++) { 
-		for (int j = 0; j <= DIM_ESPACIO; j++) { 
+	for (int i = 0; i <= DIM_PLATAFORMA; i++) { 
+		for (int j = 0; j <= DIM_PLATAFORMA; j++) {
 			cb::Vec3 v; 
-			v.x = -DIM_ESPACIO / 2 + i; 
-			v.y = -DIM_ESPACIO / 2 + j; 
+			v.x = -DIM_PLATAFORMA / 2 + i;
+			v.y = -DIM_PLATAFORMA / 2 + j;
 			v.z = pos; vertices.insert(vertices.end(), v); 
 
-			texturas.push_back((float) i / DIM_ESPACIO);
-			texturas.push_back((float) j / DIM_ESPACIO);
+			texturas.push_back((float) i / DIM_PLATAFORMA);
+			texturas.push_back((float) j / DIM_PLATAFORMA);
 		} 
 	} 
 
 	std::vector<GLuint> indices; 
-	for (int i = 0; i < DIM_ESPACIO; i++) { 
-		for (int j = 0; j < DIM_ESPACIO; j++) { 
-			int n = DIM_ESPACIO + 1; 
+	for (int i = 0; i < DIM_PLATAFORMA; i++) {
+		for (int j = 0; j < DIM_PLATAFORMA; j++) {
+			int n = DIM_PLATAFORMA + 1;
 			indices.push_back(i + j * n); 
 			indices.push_back(i + 1 + j * n); 
 			indices.push_back(i + 1 + (j + 1) * n); 
@@ -360,6 +362,81 @@ GLuint meteorito()
 	return id;
 }
 
+GLuint espacio()
+{
+	GLuint id = glGenLists(1);
+
+	glNewList(id, GL_COMPILE);
+
+	float s = DIM_ESPACIO;
+
+	std::vector<cb::Vec3> vertices;
+	std::vector<GLfloat> texturas;
+
+	vertices.push_back(cb::Vec3(s, s, s));
+	vertices.push_back(cb::Vec3(-s, s, s));
+	vertices.push_back(cb::Vec3(-s, -s, s));	//delante
+	vertices.push_back(cb::Vec3(s, -s, s));
+	texturas.insert(texturas.end(), { 1,1,  0,1,  0,0,  1,0 });
+
+	vertices.push_back(cb::Vec3(-s, s, -s));
+	vertices.push_back(cb::Vec3(s, s, -s));
+	vertices.push_back(cb::Vec3(s, -s, -s));	//detrás
+	vertices.push_back(cb::Vec3(-s, -s, -s));
+	texturas.insert(texturas.end(), { 1,1,  0,1,  0,0,  1,0 });
+
+	vertices.push_back(cb::Vec3(s, s, -s));
+	vertices.push_back(cb::Vec3(s, s, s));
+	vertices.push_back(cb::Vec3(s, -s, s));		//derecha
+	vertices.push_back(cb::Vec3(s, -s, -s));
+	texturas.insert(texturas.end(), { 1,1,  0,1,  0,0,  1,0 });
+
+	vertices.push_back(cb::Vec3(-s, s, s));
+	vertices.push_back(cb::Vec3(-s, s, -s));
+	vertices.push_back(cb::Vec3(-s, -s, -s));	//izquierda
+	vertices.push_back(cb::Vec3(-s, -s, s));
+	texturas.insert(texturas.end(), { 1,1,  0,1,  0,0,  1,0 });
+
+	vertices.push_back(cb::Vec3(-s, s, -s));
+	vertices.push_back(cb::Vec3(-s, s, s));
+	vertices.push_back(cb::Vec3(s, s, s));		//arriba
+	vertices.push_back(cb::Vec3(s, s, -s));
+	texturas.insert(texturas.end(), { 0,0,  0,1,  1,1,  1,0 });
+
+	vertices.push_back(cb::Vec3(-s, -s, s));
+	vertices.push_back(cb::Vec3(-s, -s, -s));
+	vertices.push_back(cb::Vec3(s, -s, -s));	//abajo
+	vertices.push_back(cb::Vec3(s, -s, s));
+	texturas.insert(texturas.end(), { 0,0,  0,1,  1,1,  1,0 });
+
+	std::vector<GLuint> indices;
+
+	for (int i = 0; i < 6; i++) {
+		int cara = i * 4;
+		indices.push_back(cara + 0);
+		indices.push_back(cara + 1);
+		indices.push_back(cara + 2);
+		indices.push_back(cara + 3);
+	}
+
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+	glVertexPointer(3, GL_FLOAT, 0, vertices.data());
+	glTexCoordPointer(2, GL_FLOAT, 0, texturas.data());
+
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+	glDrawElements(GL_QUADS, indices.size(), GL_UNSIGNED_INT, indices.data());
+
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	glDisableClientState(GL_VERTEX_ARRAY);
+
+	glEndList();
+
+	return id;
+}
+
 void onIdle()
 {
 	static int antes = 0;
@@ -391,11 +468,11 @@ void onIdle()
 	if (cam[1] < - 400) cam[1] = - 400;
 
 	cam[2] += cam[5] * velocidad / 100000;
-	if (cam[2] > 150) cam[2] = 150;
-	if (cam[2] < -50) cam[2] = - 50;
+	if (cam[2] > 400) cam[2] = 400;
+	if (cam[2] < -400) cam[2] = - 400;
 
-	if (cam[0] < DIM_ESPACIO / 2 + 4 && cam[0] > - DIM_ESPACIO / 2 - 4 && 
-		cam[1] < DIM_ESPACIO / 2 + 4 && cam[1] > - DIM_ESPACIO / 2 - 4) {
+	if (cam[0] < DIM_PLATAFORMA / 2 + 4 && cam[0] > - DIM_PLATAFORMA / 2 - 4 &&
+		cam[1] < DIM_PLATAFORMA / 2 + 4 && cam[1] > - DIM_PLATAFORMA / 2 - 4) {
 		if (cam[2] < 4 && cam[2] > 2) cam[2] = 4;
 		if (cam[2] > - 4 && cam[2] < - 2) cam[2] = - 4;
 	}
@@ -404,7 +481,7 @@ void onIdle()
 		mets[i].pos[0] += (mets[i].dir[0] * mets[i].velocidad / 1000);
 		mets[i].pos[1] += (mets[i].dir[1] * mets[i].velocidad / 1000);
 		mets[i].pos[2] += (mets[i].dir[2] * mets[i].velocidad / 1000);
-		if (fabs(mets[i].pos[0]) > 400 || fabs(mets[i].pos[1]) > 400 || fabs(mets[i].pos[2]) > 400) {
+		if (fabs(mets[i].pos[0]) > 800 || fabs(mets[i].pos[1]) > 800 || fabs(mets[i].pos[2]) > 800) {
 			mets[i].pos[0] = mets[i].init[0];
 			mets[i].pos[1] = mets[i].init[1];
 			mets[i].pos[2] = mets[i].init[2];
@@ -420,24 +497,26 @@ void init()
 
 	meteor = meteorito();
 
+	space = espacio();
+
 	for (int i = 0; i < NUM_METS; i++) {
-		mets[i].dir[0] = cb::random(-2, 2);
-		mets[i].dir[1] = cb::random(-2, 2);
-		mets[i].dir[2] = cb::random(-2, 2);
+		mets[i].dir[0] = cb::random(- 2, 2);
+		mets[i].dir[1] = cb::random(- 2, 2);
+		mets[i].dir[2] = cb::random(- 2, 2);
 
 		mets[i].giro[0] = cb::random(0, 1);
 		mets[i].giro[1] = cb::random(0, 1);
 		mets[i].giro[2] = cb::random(0, 1);
 
-		mets[i].pos[0] = cb::random(- 250, 250);
-		mets[i].pos[1] = cb::random(- 250, 250);
-		mets[i].pos[2] = cb::random(- 250, 250);
+		mets[i].pos[0] = cb::random(- 400, 400);
+		mets[i].pos[1] = cb::random(- 400, 400);
+		mets[i].pos[2] = cb::random(- 400, 400);
 
 		mets[i].init[0] = mets[i].pos[0];
 		mets[i].init[1] = mets[i].pos[1];
 		mets[i].init[2] = mets[i].pos[2];
 
-		mets[i].velocidad = cb::random(5, 20);
+		mets[i].velocidad = cb::random(5, 25);
 
 		mets[i].tamaño = cb::random(5, 30);
 	}
@@ -520,7 +599,7 @@ void display()
 		glDisable(GL_LIGHT3);
 	}
 
-	glShadeModel(GL_FLAT);
+	glShadeModel(GL_SMOOTH);
 
 	glLightModeli(GL_LIGHT_MODEL_COLOR_CONTROL, GL_SEPARATE_SPECULAR_COLOR);
 
@@ -542,8 +621,17 @@ void display()
 		glPopMatrix();
 	}
 
-	glDisable(GL_TEXTURE_GEN_S);
-	glDisable(GL_TEXTURE_GEN_T);
+	glDisable(GL_LIGHTING);
+	glDepthMask(GL_FALSE);
+
+	glPushMatrix();
+		glBindTexture(GL_TEXTURE_2D, textura_espacio);
+		glCallList(space);
+	glPopMatrix();
+
+	glDepthMask(GL_TRUE);
+	glEnable(GL_LIGHTING);
+
 	glDisable(GL_TEXTURE_2D);
 	
 	glutSwapBuffers();
@@ -554,7 +642,7 @@ void reshape(GLint w, GLint h)
 	glViewport(0, 0, w, h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(45, w / h, 1, 1000);
+	gluPerspective(45, w / h, 1, 3000);
 }
 
 void teclado(unsigned char tecla, int x, int y)
