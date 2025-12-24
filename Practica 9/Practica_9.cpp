@@ -8,17 +8,17 @@
 #include <vector>
 #include <freeimage/FreeImage.h>
 
-GLuint suelo, meteor, space, textura_suelo, textura_meteoritos, textura_espacio;
+GLuint suelo, meteor, space, textura_suelo, textura_meteoritos, textura_espacio, textura_cabina, textura_explosion;
 
 const int DIM_ESPACIO = 1000;
 
 const int DIM_PLATAFORMA = 100;
 
-const int NUM_METS = 40;
+const int NUM_METS = 60;
 
-const int Wx = 1200, Wy = 700;
+static int FPS = 0;
 
-static int FPS = 60;
+static int Wx = 1200, Wy = 700;
 
 static float cam[9] = { 0, 0, 4, 0, 1, 4, 0, 0, 1 };
 
@@ -26,7 +26,7 @@ static double velocidad = 0;
 
 static float giro = 0, altura = 0;
 
-static bool luces = false;
+static bool luces = false, cabina = false;
 
 static float angulo = 0;
 
@@ -34,9 +34,10 @@ struct Meteorito {
 	float pos[3];
 	float dir[3];
 	float giro[3];
-	float init[3];
 	float tamaño;
 	float velocidad;
+	bool explotando = false;
+	int contador = 0;
 };
 
 Meteorito mets[NUM_METS];
@@ -48,7 +49,8 @@ GLuint loadTexture(const char* nombre)
 	glGenTextures(1, &id);
 	glBindTexture(GL_TEXTURE_2D, id);
 
-	FIBITMAP* imagen = FreeImage_Load(FIF_JPEG, nombre);
+	FREE_IMAGE_FORMAT formato = FreeImage_GetFileType(nombre, 0);
+	FIBITMAP* imagen = FreeImage_Load(formato, nombre);
 	FIBITMAP* imagen32b = FreeImage_ConvertTo32Bits(imagen);
 	int w = FreeImage_GetWidth(imagen32b);
 	int h = FreeImage_GetHeight(imagen32b);
@@ -72,47 +74,7 @@ GLuint loadTexture(const char* nombre)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	/*
-	glEnable(GL_TEXTURE_GEN_S);
-	glEnable(GL_TEXTURE_GEN_T);
-
-	const GLfloat planoS[] = { 1,0,0,0 };
-	const GLfloat planoT[] = { 0,1,0,0 };
-	glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
-	glTexGenfv(GL_S, GL_OBJECT_PLANE, planoS);
-	glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
-	glTexGenfv(GL_T, GL_OBJECT_PLANE, planoT);
-	*/
-	/*
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	glOrtho(-1, 1, -1, 1, -10, 10);
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
-	glPushAttrib(GL_ENABLE_BIT);
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_LIGHTING);
-	glEnable(GL_TEXTURE_2D);
-	glDisable(GL_TEXTURE_GEN_S);
-	glDisable(GL_TEXTURE_GEN_T);
-	glBegin(GL_POLYGON);
-	glTexCoord2f(0, 0);
-	glVertex3f(-1, -1, 0);
-	glTexCoord2f(1, 0);
-	glVertex3f(1, -1, 0);
-	glTexCoord2f(1, 1);
-	glVertex3f(1, 1, 0);
-	glTexCoord2f(0, 1);
-	glVertex3f(-1, 1, 0);
-	glEnd();
-	glPopMatrix();
-	glPopAttrib();
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	*/
+	
 	return id;
 }
 
@@ -184,8 +146,6 @@ GLuint meteorito()
 	std::vector<cb::Vec3> vertices = {};
 	std::vector<cb::Vec3> normales = {};
 	std::vector<GLfloat> texturas;
-
-	float c = 1.618034;
 
 	vertices.push_back(cb::Vec3(0, 0, 1.2));
 	normales.push_back(normalize(vertices.back()));
@@ -437,54 +397,142 @@ GLuint espacio()
 	return id;
 }
 
-void onIdle()
+void explosion(int id)
 {
-	static int antes = 0;
+	mets[id].explotando = !mets[id].explotando;
+	if (!mets[id].explotando) {
+		mets[id].contador = 0;
+
+		mets[id].pos[0] = cb::random(- 800, 800);
+		mets[id].pos[1] = cb::random(- 800, 800);
+		mets[id].pos[2] = cb::random(- 800, 800);
+
+		mets[id].dir[0] = - (mets[id].pos[0] / 400);
+		mets[id].dir[1] = - (mets[id].pos[1] / 400);
+		mets[id].dir[2] = - (mets[id].pos[2] / 400);
+	}
+	else {
+		glDisable(GL_LIGHTING);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+		glBindTexture(GL_TEXTURE_2D, textura_explosion);
+
+		glPushMatrix();
+			glTranslatef(mets[id].pos[0], mets[id].pos[1], mets[id].pos[2]);
+
+			float s = mets[id].tamaño * 2.0f;
+
+			glBegin(GL_QUADS);
+			glTexCoord2f(0, 0); glVertex3f(- s, - s, 0);
+			glTexCoord2f(1, 0); glVertex3f(  s, - s, 0);
+			glTexCoord2f(1, 1); glVertex3f(  s,   s, 0);
+			glTexCoord2f(0, 1); glVertex3f(- s,   s, 0);
+			glEnd();
+		glPopMatrix();
+
+		glDisable(GL_BLEND);
+		glEnable(GL_LIGHTING);
+	}
+}
+
+void mostrarFPS()
+{
 	int ahora, tiempo_transcurrido;
+	static int antes = 0;
+	FPS++;
 	ahora = glutGet(GLUT_ELAPSED_TIME);
 	tiempo_transcurrido = ahora - antes;
-
-	angulo += 0.01;
-
-	FPS++;
 	if (tiempo_transcurrido > 1000) {
 		stringstream titulo;
 		titulo << PROYECTO << "		FPS: " << FPS;
 		glutSetWindowTitle(titulo.str().c_str());
-		FPS = 0;
 		antes = ahora;
+		FPS = 0;
 	}
+}
 
+void onIdle()
+{
+	//Actualización de la cámara
 	cam[3] = sin(giro) * 1000;
 	cam[4] = cos(giro) * 1000;
 	cam[5] = altura * 1000;
 
+	//Movimiento de la nave
 	cam[0] += cam[3] * velocidad / 100000;
-	if (cam[0] > 400) cam[0] = 400;
-	if (cam[0] < -400) cam[0] = -400;
+	if (cam[0] > 800) cam[0] = 800;
+	if (cam[0] < - 800) cam[0] = - 800;
 
 	cam[1] += cam[4] * velocidad / 100000;
-	if (cam[1] > 400) cam[1] = 400;
-	if (cam[1] < -400) cam[1] = -400;
+	if (cam[1] > 800) cam[1] = 800;
+	if (cam[1] < - 800) cam[1] = - 800;
 
 	cam[2] += cam[5] * velocidad / 100000;
-	if (cam[2] > 400) cam[2] = 400;
-	if (cam[2] < -400) cam[2] = -400;
+	if (cam[2] > 800) cam[2] = 800;
+	if (cam[2] < - 800) cam[2] = - 800;
 
-	if (cam[0] < DIM_PLATAFORMA / 2 + 4 && cam[0] > -DIM_PLATAFORMA / 2 - 4 &&
-		cam[1] < DIM_PLATAFORMA / 2 + 4 && cam[1] > -DIM_PLATAFORMA / 2 - 4) {
+	//Físicas de la plataforma con la nave
+	if (cam[0] < DIM_PLATAFORMA / 2 + 4 && cam[0] > - DIM_PLATAFORMA / 2 - 4 &&
+		cam[1] < DIM_PLATAFORMA / 2 + 4 && cam[1] > - DIM_PLATAFORMA / 2 - 4) {
 		if (cam[2] < 4 && cam[2] > 2) cam[2] = 4;
 		if (cam[2] > -4 && cam[2] < -2) cam[2] = -4;
 	}
 
+	//Movimiento de los meteoritos
 	for (int i = 0; i < NUM_METS; i++) {
 		mets[i].pos[0] += (mets[i].dir[0] * mets[i].velocidad / 1000);
 		mets[i].pos[1] += (mets[i].dir[1] * mets[i].velocidad / 1000);
 		mets[i].pos[2] += (mets[i].dir[2] * mets[i].velocidad / 1000);
-		if (fabs(mets[i].pos[0]) > 800 || fabs(mets[i].pos[1]) > 800 || fabs(mets[i].pos[2]) > 800) {
-			mets[i].pos[0] = mets[i].init[0];
-			mets[i].pos[1] = mets[i].init[1];
-			mets[i].pos[2] = mets[i].init[2];
+	}
+	angulo += 0.01;
+
+	//Físicas de los meteoritos
+	for (int i = 0; i < NUM_METS; i++) {
+		float p0 = mets[i].pos[0], p1 = mets[i].pos[1], p2 = mets[i].pos[2], t = mets[i].tamaño;
+		
+		//Choque con el límite del espacio
+		if (!mets[i].explotando) {
+			if (fabs(p0) > 800) mets[i].dir[0] = - mets[i].dir[0];
+			if (fabs(p1) > 800) mets[i].dir[1] = - mets[i].dir[1];
+			if (fabs(p2) > 800) mets[i].dir[2] = - mets[i].dir[2];
+		}
+
+		//Choque con la plataforma
+		if (p0 < DIM_PLATAFORMA / 2 + t && p0 > - DIM_PLATAFORMA / 2 - t &&
+			p1 < DIM_PLATAFORMA / 2 + t && p1 > - DIM_PLATAFORMA / 2 - t &&
+			p2 < t && p2 > -t) {
+			mets[i].dir[2] = - mets[i].dir[2];
+		}
+
+		else if (!mets[i].explotando) {
+			//Choque con la nave
+			if (cam[0] < p0 + t && cam[0] > p0 - t &&
+				cam[1] < p1 + t && cam[1] > p1 - t &&
+				cam[2] < p2 + t && cam[2] > p2 - t) {
+				explosion(i);
+			}
+
+			//Choque con otro meteorito
+			else {
+				for (int j = 0; j < NUM_METS; j++) {
+					if (j != i) {
+						float q0 = mets[j].pos[0], q1 = mets[j].pos[1], q2 = mets[j].pos[2], g = t + mets[j].tamaño;
+
+						if (q0 < p0 + g && q0 > p0 - g &&
+							q1 < p1 + g && q1 > p1 - g &&
+							q2 < p2 + g && q2 > p2 - g) {
+							explosion(i);
+							explosion(j);
+						}
+					}
+				}
+			}
+		}
+		else {
+			mets[i].contador += 1;
+			if (mets[i].contador > 3000 && mets[i].pos[0] < 800 && 
+				mets[i].pos[1] < 800 && mets[i].pos[2] < 800) explosion(i);
 		}
 	}
 
@@ -499,6 +547,7 @@ void init()
 
 	space = espacio();
 
+	//Inicialización de los meteoritos
 	for (int i = 0; i < NUM_METS; i++) {
 		mets[i].dir[0] = cb::random(-2, 2);
 		mets[i].dir[1] = cb::random(-2, 2);
@@ -508,22 +557,21 @@ void init()
 		mets[i].giro[1] = cb::random(0, 1);
 		mets[i].giro[2] = cb::random(0, 1);
 
-		mets[i].pos[0] = cb::random(-400, 400);
-		mets[i].pos[1] = cb::random(-400, 400);
-		mets[i].pos[2] = cb::random(-400, 400);
+		mets[i].pos[0] = cb::random(-600, 600);
+		mets[i].pos[1] = cb::random(-600, 600);
+		mets[i].pos[2] = cb::random(-600, 600);
 
-		mets[i].init[0] = mets[i].pos[0];
-		mets[i].init[1] = mets[i].pos[1];
-		mets[i].init[2] = mets[i].pos[2];
+		mets[i].velocidad = cb::random(5, 40);
 
-		mets[i].velocidad = cb::random(5, 25);
-
-		mets[i].tamaño = cb::random(5, 30);
+		mets[i].tamaño = cb::random(5, 50);
 	}
 
+	//Inicialización de las texturas
 	textura_suelo = loadTexture("Texturas/Textura_suelo.jpg");
 	textura_meteoritos = loadTexture("Texturas/Textura_meteorito.jpg");
 	textura_espacio = loadTexture("Texturas/Textura_espacio.jpg");
+	textura_cabina = loadTexture("Texturas/Textura_cabina.png");
+	textura_explosion = loadTexture("Texturas/Textura_explosion.jpg");
 }
 
 void display()
@@ -535,11 +583,13 @@ void display()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
+	//Material
 	GLfloat material_emission[] = { 0.1, 0.1, 0.1, 1 };
 	GLfloat material_ambient[] = { 0.3, 0.3, 0.3, 1 };
 	GLfloat material_diffuse[] = { 0.9, 0.9, 0.9, 1 };
 	GLfloat material_specular[] = { 1, 1, 1, 1 };
 	GLfloat material_shininess[] = { 30 };
+	glMaterialfv(GL_FRONT, GL_EMISSION, material_emission);
 	glMaterialfv(GL_FRONT, GL_AMBIENT, material_ambient);
 	glMaterialfv(GL_FRONT, GL_DIFFUSE, material_diffuse);
 	glMaterialfv(GL_FRONT, GL_SPECULAR, material_specular);
@@ -550,6 +600,7 @@ void display()
 
 	gluLookAt(cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], cam[6], cam[7], cam[8]);
 
+	//Luz Solar
 	glEnable(GL_LIGHT1);
 	GLfloat AmbSol[] = { 0.3, 0.3, 0.3, 1 };
 	GLfloat DifSol[] = { 0.5, 0.5, 0.5, 1 };
@@ -560,6 +611,7 @@ void display()
 	glLightfv(GL_LIGHT1, GL_SPECULAR, SpecSol);
 	glLightfv(GL_LIGHT1, GL_POSITION, posSol);
 
+	//Luces focales (faros)
 	if (luces)
 	{
 		GLfloat dirFoc[] = { cam[3] - cam[0], cam[4] - cam[1], cam[5] - cam[2] };
@@ -580,8 +632,8 @@ void display()
 		GLfloat posFoc1[] = { cam[0] + cos(giro) * 3, cam[1] - sin(giro) * 3, cam[2], 1 };
 		glLightfv(GL_LIGHT2, GL_POSITION, posFoc1);
 		glLightfv(GL_LIGHT2, GL_SPOT_DIRECTION, dirFoc);
-		glLightf(GL_LIGHT2, GL_SPOT_CUTOFF, 7);
-		glLightf(GL_LIGHT2, GL_SPOT_EXPONENT, 100);
+		glLightf(GL_LIGHT2, GL_SPOT_CUTOFF, 10);
+		glLightf(GL_LIGHT2, GL_SPOT_EXPONENT, 60);
 
 		glEnable(GL_LIGHT3);
 		glLightfv(GL_LIGHT3, GL_AMBIENT, AmbFoc);
@@ -590,8 +642,8 @@ void display()
 		GLfloat posFoc2[] = { cam[0] - cos(giro) * 3, cam[1] + sin(giro) * 3, cam[2], 1 };
 		glLightfv(GL_LIGHT3, GL_POSITION, posFoc2);
 		glLightfv(GL_LIGHT3, GL_SPOT_DIRECTION, dirFoc);
-		glLightf(GL_LIGHT3, GL_SPOT_CUTOFF, 8);
-		glLightf(GL_LIGHT3, GL_SPOT_EXPONENT, 80);
+		glLightf(GL_LIGHT3, GL_SPOT_CUTOFF, 10);
+		glLightf(GL_LIGHT3, GL_SPOT_EXPONENT, 60);
 	}
 	else
 	{
@@ -605,34 +657,83 @@ void display()
 
 	glEnable(GL_TEXTURE_2D);
 
-	glPushMatrix();
-	glBindTexture(GL_TEXTURE_2D, textura_suelo);
-	glCallList(suelo);
-	glPopMatrix();
-
-	glBindTexture(GL_TEXTURE_2D, textura_meteoritos);
-
-	for (int i = 0; i < NUM_METS; i++) {
-		glPushMatrix();
-		glTranslatef(mets[i].pos[0], mets[i].pos[1], mets[i].pos[2]);
-		glRotatef(angulo, mets[i].giro[0], mets[i].giro[1], mets[i].giro[2]);
-		glScalef(mets[i].tamaño, mets[i].tamaño, mets[i].tamaño);
-		glCallList(meteor);
-		glPopMatrix();
-	}
-
 	glDisable(GL_LIGHTING);
-	glDepthMask(GL_FALSE);
 
+	//Entorno espacial
 	glPushMatrix();
-	glBindTexture(GL_TEXTURE_2D, textura_espacio);
-	glCallList(space);
+		glBindTexture(GL_TEXTURE_2D, textura_espacio);
+		glCallList(space);
 	glPopMatrix();
 
-	glDepthMask(GL_TRUE);
 	glEnable(GL_LIGHTING);
 
+	//Plataforma
+	glPushMatrix();
+		glBindTexture(GL_TEXTURE_2D, textura_suelo);
+		glCallList(suelo);
+	glPopMatrix();
+
+	//Meteoritos
+	for (int i = 0; i < NUM_METS; i++) {
+		if (!mets[i].explotando) {
+			glBindTexture(GL_TEXTURE_2D, textura_meteoritos);
+
+			glPushMatrix();
+				glTranslatef(mets[i].pos[0], mets[i].pos[1], mets[i].pos[2]);
+				glRotatef(angulo, mets[i].giro[0], mets[i].giro[1], mets[i].giro[2]);
+				glScalef(mets[i].tamaño, mets[i].tamaño, mets[i].tamaño);
+				glCallList(meteor);
+			glPopMatrix();
+	}
+
+	//Cabina
+	if (cabina)
+	{
+		glBindTexture(GL_TEXTURE_2D, textura_cabina);
+
+		glDisable(GL_LIGHTING);
+		glDisable(GL_DEPTH_TEST);
+		glDepthMask(GL_FALSE);
+
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		glMatrixMode(GL_PROJECTION);
+
+		glPushMatrix();
+			glLoadIdentity();
+			glOrtho(0, Wx, 0, Wy, -1, 1);
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+				glLoadIdentity();
+				glColor4f(1, 1, 1, 1);
+				glBegin(GL_QUADS);
+				glTexCoord2f(0, 0); glVertex2f(0, 0);
+				glTexCoord2f(1, 0); glVertex2f(Wx, 0);
+				glTexCoord2f(1, 1); glVertex2f(Wx, Wy);
+				glTexCoord2f(0, 1); glVertex2f(0, Wy);
+				glEnd();
+			glPopMatrix();
+			glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+
+		glMatrixMode(GL_MODELVIEW);
+
+		glDisable(GL_BLEND);
+
+		glDepthMask(GL_TRUE);
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_LIGHTING);
+
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		gluPerspective(45.0, (float) Wx / (float) Wy, 1.0, 3000.0);
+		glMatrixMode(GL_MODELVIEW);
+	}
+
 	glDisable(GL_TEXTURE_2D);
+
+	mostrarFPS();
 
 	glutSwapBuffers();
 }
@@ -642,16 +743,18 @@ void reshape(GLint w, GLint h)
 	glViewport(0, 0, w, h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	gluPerspective(45, w / h, 1, 3000);
+	gluPerspective(45, (float) w / (float) h, 1, 3000);
+	Wx = w; Wy = h;
 }
 
 void teclado(unsigned char tecla, int x, int y)
 {
 	switch (tecla)
 	{
-	case 'a': if (velocidad < 10) velocidad += 1; break;
+	case 'a': if (velocidad < 15) velocidad += 1; break;
 	case 'z': if (velocidad > 0) velocidad -= 1; break;
 	case 'l': luces = !luces; if (luces) printf("Luces activadas\n"); else printf("Luces desactivadas\n"); break;
+	case 'c': cabina = !cabina; if (cabina) printf("Cabina activada\n"); else printf("Cabina desactivada\n"); break;
 	}
 	glutPostRedisplay();
 }
